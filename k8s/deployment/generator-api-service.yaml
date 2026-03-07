@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: generator-api-service
+  namespace: scaffoldops
+spec:
+  selector:
+    app: generator-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP

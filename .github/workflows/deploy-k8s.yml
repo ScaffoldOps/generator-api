@@ -1,0 +1,48 @@
+name: Deploy generator-api to Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      namespace:
+        required: true
+        type: string
+      image_version:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    env:
+      NAMESPACE: ${{ inputs.namespace }}
+      IMAGE_NAME: scaffoldops/generator-api
+      IMAGE_VERSION: ${{ inputs.image_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.32.0
+
+      - name: Deploy database and application
+        run: |
+          set -euo pipefail
+          kubectl config use-context minikube
+          kubectl cluster-info
+
+          kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
+
+          kubectl apply -f k8s/db/volume/pv.yaml
+          kubectl apply -n "${NAMESPACE}" -f k8s/db/volume/pvc.yaml
+          kubectl apply -n "${NAMESPACE}" -f k8s/config/generator-api-configmap.yaml
+          kubectl apply -n "${NAMESPACE}" -f k8s/db/generator-api-db-service.yaml
+          kubectl apply -n "${NAMESPACE}" -f k8s/db/generator-api-db-deployment.yaml
+          kubectl rollout status deployment/generator-api-db-deployment -n "${NAMESPACE}" --timeout=300s
+
+          kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-service.yaml
+          kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-deployment.yaml
+          kubectl set image deployment/generator-api-deployment generator-api=${IMAGE_NAME}:${IMAGE_VERSION} -n "${NAMESPACE}"
+          kubectl rollout status deployment/generator-api-deployment -n "${NAMESPACE}" --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=generator-api -n "${NAMESPACE}" --timeout=300s

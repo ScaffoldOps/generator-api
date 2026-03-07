@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: generator-api-db-service
+  namespace: scaffoldops
+spec:
+  selector:
+    app: generator-api-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
