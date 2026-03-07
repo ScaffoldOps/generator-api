@@ -39,6 +39,10 @@ jobs:
     name: Qodana Scan
     needs: code_quality
     uses: ./.github/workflows/qodana_code_quality.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     secrets:
       QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
 
