@@ -6,7 +6,12 @@ on:
       namespace:
         description: Kubernetes namespace
         required: true
-        default: scaffoldops
+        default: scaffoldops-dev
+        type: string
+      environment_name:
+        description: Deployment environment name
+        required: true
+        default: DEV
         type: string
       image_version:
         description: Docker image tag to deploy
@@ -26,4 +31,5 @@ jobs:
     uses: ./.github/workflows/deploy-k8s.yml
     with:
       namespace: ${{ inputs.namespace }}
+      environment_name: ${{ inputs.environment_name }}
       image_version: ${{ inputs.image_version }}

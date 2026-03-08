@@ -6,6 +6,9 @@ on:
       namespace:
         required: true
         type: string
+      environment_name:
+        required: true
+        type: string
       image_version:
         required: true
         type: string
@@ -13,8 +16,10 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    environment: ${{ inputs.environment_name }}
     env:
       NAMESPACE: ${{ inputs.namespace }}
+      ENVIRONMENT_NAME: ${{ inputs.environment_name }}
       IMAGE_NAME: victodomvar/scaffoldops-generator-api
       IMAGE_VERSION: ${{ inputs.image_version }}
     steps:
