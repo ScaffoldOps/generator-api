@@ -14,7 +14,7 @@ data:
         servlet:
           path: /api/generator/v1
       datasource:
-        url: jdbc:postgresql://generator-api-db-service:5432/generatorapidb
+        url: jdbc:postgresql://postgres.scaffoldops.svc.cluster.local:5432/generatorapidb
 
     logging:
       level:

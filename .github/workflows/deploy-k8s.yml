@@ -31,7 +31,7 @@ jobs:
         with:
           version: v1.32.0
 
-      - name: Deploy database and application
+      - name: Deploy application
         run: |
           set -euo pipefail
           kubectl config use-context minikube
@@ -39,12 +39,7 @@ jobs:
 
           kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
-          kubectl apply -f k8s/db/volume/pv.yaml
-          kubectl apply -n "${NAMESPACE}" -f k8s/db/volume/pvc.yaml
           kubectl apply -n "${NAMESPACE}" -f k8s/config/generator-api-configmap.yaml
-          kubectl apply -n "${NAMESPACE}" -f k8s/db/generator-api-db-service.yaml
-          kubectl apply -n "${NAMESPACE}" -f k8s/db/generator-api-db-deployment.yaml
-          kubectl rollout status deployment/generator-api-db-deployment -n "${NAMESPACE}" --timeout=300s
 
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-service.yaml
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-deployment.yaml

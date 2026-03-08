@@ -167,7 +167,12 @@ jobs:
 
   docker_push:
     name: Generator API Docker Push
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+    if: >-
+      ${{
+        github.event_name == 'push' &&
+        needs.docker_build.result == 'success' &&
+        (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+      }}
     runs-on: self-hosted
     needs:
       - docker_build
@@ -207,8 +212,15 @@ jobs:
   deploy:
     name: Deploy generator-api to Minikube
     needs:
+      - docker_build
       - docker_push
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+    if: >-
+      ${{
+        github.event_name == 'push' &&
+        needs.docker_build.result == 'success' &&
+        needs.docker_push.result == 'success' &&
+        (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+      }}
     uses: ./.github/workflows/deploy-k8s.yml
     with:
       namespace: ${{ github.ref == 'refs/heads/develop' && 'scaffoldops-dev' || 'scaffoldops-pre' }}

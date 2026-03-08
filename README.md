@@ -65,5 +65,6 @@ docker build -f Dockerfile -t scaffoldops/generator-api:latest .
 ## Kubernetes
 Deployment assets live under `k8s/`:
 - `k8s/config`
-- `k8s/db`
 - `k8s/deployment`
+
+Shared PostgreSQL infrastructure is managed in `platform-infra`. This repository only owns the generator-api application manifests and runtime configuration.
