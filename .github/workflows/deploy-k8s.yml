@@ -15,7 +15,7 @@ jobs:
     runs-on: self-hosted
     env:
       NAMESPACE: ${{ inputs.namespace }}
-      IMAGE_NAME: scaffoldops/generator-api
+      IMAGE_NAME: victodomvar/scaffoldops-generator-api
       IMAGE_VERSION: ${{ inputs.image_version }}
     steps:
       - name: Checkout repository

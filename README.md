@@ -46,7 +46,15 @@ Dependency direction:
 ## API Reference
 See [docs/API.md](docs/API.md).
 OpenAPI source: `src/main/resources/openapi/generator-api.yaml`.
-Swagger UI is available at `/swagger-ui.html`.
+
+## Runtime Endpoints
+- API base path: `/api/generator/v1`
+- Example API endpoint: `/api/generator/v1/generation-requests`
+- Swagger UI: `/api/generator/v1/swagger-ui.html`
+- OpenAPI JSON: `/api/generator/v1/v3/api-docs`
+- Actuator health: `/actuator/health`
+- Liveness probe: `/actuator/health/liveness`
+- Readiness probe: `/actuator/health/readiness`
 
 ## Docker
 ```bash

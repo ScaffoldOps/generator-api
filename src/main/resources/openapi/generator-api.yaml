@@ -1,7 +1,11 @@
 openapi: 3.0.3
 info:
-  title: Generator API
-  version: "1.0.0"
+  title: ScaffoldOps Generator API
+  description: API for submitting and tracking scaffold generation requests.
+  version: "0.0.1-SNAPSHOT"
+servers:
+  - url: /api/generator/v1
+    description: Base API path
 paths:
   /generation-requests:
     post:

@@ -3,12 +3,12 @@ name: Generator API CI/CD Pipeline
 on:
   pull_request:
     branches:
-      - develop
-      - master
+      - main
   push:
     branches:
-      - develop
-      - master
+      - '**'
+  schedule:
+    - cron: '0 2 * * *'
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -20,6 +20,7 @@ permissions:
 jobs:
   code_quality:
     name: Code Quality
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -37,7 +38,9 @@ jobs:
 
   qodana:
     name: Qodana Scan
-    needs: code_quality
+    if: ${{ github.event_name == 'pull_request' }}
+    needs:
+      - code_quality
     uses: ./.github/workflows/qodana_code_quality.yml
     permissions:
       contents: read
@@ -48,10 +51,10 @@ jobs:
 
   tests:
     name: Tests
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: self-hosted
     needs:
       - code_quality
-      - qodana
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,8 +71,8 @@ jobs:
 
   codeql:
     name: CodeQL Analysis
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: self-hosted
-    needs: tests
     permissions:
       contents: read
       security-events: write
@@ -98,10 +101,11 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
   docker:
-    name: Generator API Docker Build and Push
+    name: Generator API Docker Build
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: self-hosted
-    needs: codeql
-    if: ${{ github.event_name == 'push' }}
+    needs:
+      - tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -127,30 +131,28 @@ jobs:
           echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to Docker Hub
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image tags
-        env:
-          IMAGE_NAME: scaffoldops/generator-api
-          APP_VERSION: ${{ steps.app_version.outputs.version }}
-        run: |
-          set -euo pipefail
-          docker build -f Dockerfile \
-            -t ${IMAGE_NAME}:${APP_VERSION} \
-            -t ${IMAGE_NAME}:${{ github.sha }} \
-            -t ${IMAGE_NAME}:latest \
-            .
-          docker push ${IMAGE_NAME}:${APP_VERSION}
-          docker push ${IMAGE_NAME}:${{ github.sha }}
-          docker push ${IMAGE_NAME}:latest
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            victodomvar/scaffoldops-generator-api:${{ steps.app_version.outputs.version }}
+            victodomvar/scaffoldops-generator-api:${{ github.sha }}
+            victodomvar/scaffoldops-generator-api:latest
 
   deploy:
     name: Deploy generator-api to Minikube
-    needs: docker
-    if: ${{ github.event_name == 'push' }}
+    needs:
+      - docker
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     uses: ./.github/workflows/deploy-k8s.yml
     with:
       namespace: scaffoldops

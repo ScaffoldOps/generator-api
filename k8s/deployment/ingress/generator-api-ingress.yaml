@@ -9,7 +9,7 @@ spec:
     - host: generator-api.local
       http:
         paths:
-          - path: /generation-requests
+          - path: /api/generator/v1/generation-requests
             pathType: Prefix
             backend:
               service:
