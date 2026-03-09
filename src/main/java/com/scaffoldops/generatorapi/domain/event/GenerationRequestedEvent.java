@@ -1,10 +1,13 @@
-package com.scaffoldops.generatorapi.domain.model;
+package com.scaffoldops.generatorapi.domain.event;
+
+import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
+import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record GenerationRequest(
-        UUID id,
+public record GenerationRequestedEvent(
+        UUID requestId,
         String name,
         String template,
         boolean database,
@@ -13,8 +16,6 @@ public record GenerationRequest(
         boolean messaging,
         DeploymentTarget deploymentTarget,
         GenerationRequestStatus status,
-        String specJson,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime createdAt
 ) {
 }

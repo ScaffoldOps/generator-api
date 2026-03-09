@@ -18,7 +18,9 @@ public class GenerationRequestPersistenceMapper {
                 generationRequest.messaging(),
                 generationRequest.deploymentTarget(),
                 generationRequest.status(),
-                generationRequest.createdAt()
+                generationRequest.specJson(),
+                generationRequest.createdAt(),
+                generationRequest.updatedAt()
         );
     }
 
@@ -33,7 +35,9 @@ public class GenerationRequestPersistenceMapper {
                 entity.isMessaging(),
                 entity.getDeploymentTarget(),
                 entity.getStatus(),
-                entity.getCreatedAt()
+                entity.getSpecJson(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
         );
     }
 }

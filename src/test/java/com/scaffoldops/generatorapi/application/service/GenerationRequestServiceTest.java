@@ -1,6 +1,7 @@
 package com.scaffoldops.generatorapi.application.service;
 
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestRepository;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
@@ -25,6 +26,9 @@ class GenerationRequestServiceTest {
     @Mock
     private GenerationRequestRepository generationRequestRepository;
 
+    @Mock
+    private GenerationRequestEventPublisher generationRequestEventPublisher;
+
     @InjectMocks
     private GenerationRequestService generationRequestService;
 
@@ -40,7 +44,8 @@ class GenerationRequestServiceTest {
                         true,
                         true,
                         false,
-                        DeploymentTarget.KUBERNETES
+                        DeploymentTarget.KUBERNETES,
+                        "{\"name\":\"billing-service\"}"
                 )
         );
 
@@ -52,6 +57,9 @@ class GenerationRequestServiceTest {
         assertThat(saved.name()).isEqualTo("billing-service");
         assertThat(saved.template()).isEqualTo("spring-boot-hexagonal");
         assertThat(saved.status()).isEqualTo(GenerationRequestStatus.RECEIVED);
+        assertThat(saved.specJson()).isEqualTo("{\"name\":\"billing-service\"}");
         assertThat(saved.createdAt()).isNotNull();
+        assertThat(saved.updatedAt()).isEqualTo(saved.createdAt());
+        verify(generationRequestEventPublisher).publishGenerationRequested(any());
     }
 }

@@ -45,8 +45,14 @@ public class GenerationRequestEntity {
     @Column(nullable = false)
     private GenerationRequestStatus status;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String specJson;
+
     @Column(nullable = false)
     private OffsetDateTime createdAt;
+
+    @Column(nullable = false)
+    private OffsetDateTime updatedAt;
 
     @SuppressWarnings("unused")
     protected GenerationRequestEntity() {
@@ -62,7 +68,9 @@ public class GenerationRequestEntity {
             boolean messaging,
             DeploymentTarget deploymentTarget,
             GenerationRequestStatus status,
-            OffsetDateTime createdAt
+            String specJson,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
     ) {
         this.id = id;
         this.name = name;
@@ -73,7 +81,9 @@ public class GenerationRequestEntity {
         this.messaging = messaging;
         this.deploymentTarget = deploymentTarget;
         this.status = status;
+        this.specJson = specJson;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public UUID getId() {
@@ -112,7 +122,15 @@ public class GenerationRequestEntity {
         return status;
     }
 
+    public String getSpecJson() {
+        return specJson;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }
