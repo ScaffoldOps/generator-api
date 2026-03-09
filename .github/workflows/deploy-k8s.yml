@@ -38,9 +38,10 @@ jobs:
           kubectl cluster-info
 
           kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
+          kubectl get secret postgres-credentials -n "${NAMESPACE}" >/dev/null
 
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-service.yaml
-          kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-deployment.yaml
-          kubectl set image deployment/generator-api-deployment generator-api=${IMAGE_NAME}:${IMAGE_VERSION} -n "${NAMESPACE}"
+          sed "s|image: .*|image: ${IMAGE_NAME}:${IMAGE_VERSION}|" k8s/deployment/generator-api-deployment.yaml \
+            | kubectl apply -n "${NAMESPACE}" -f -
           kubectl rollout status deployment/generator-api-deployment -n "${NAMESPACE}" --timeout=300s
           kubectl wait --for=condition=ready pod -l app=generator-api -n "${NAMESPACE}" --timeout=300s

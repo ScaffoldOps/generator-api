@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: generator-api
-          image: scaffoldops/generator-api:latest
+          image: victodomvar/scaffoldops-generator-api:develop
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
