@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SecurityConfiguration.class,
         GenerationRequestControllerTest.MockConfig.class
 })
+@TestPropertySource(properties = "spring.main.allow-bean-definition-overriding=true")
 class GenerationRequestControllerTest {
 
     @Autowired
@@ -72,7 +74,8 @@ class GenerationRequestControllerTest {
                         .content(objectMapper.writeValueAsString(new RequestBodyFixture())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.status").value("RECEIVED"));
+                .andExpect(jsonPath("$.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
     }
 
     @Test
@@ -83,7 +86,8 @@ class GenerationRequestControllerTest {
         mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("billing-service"))
-                .andExpect(jsonPath("$.deploymentTarget").value("KUBERNETES"));
+                .andExpect(jsonPath("$.deploymentTarget").value("KUBERNETES"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
     }
 
     @Test
@@ -129,7 +133,25 @@ class GenerationRequestControllerTest {
     @Test
     void shouldReturnUnauthorizedWhenRequestHasNoBearerToken() throws Exception {
         mockMvc.perform(get("/generation-requests"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Unauthorized"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenIdIsInvalid() throws Exception {
+        mockMvc.perform(get("/generation-requests/{id}", "not-a-uuid").with(jwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for id"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenRequestBodyIsMalformed() throws Exception {
+        mockMvc.perform(post("/generation-requests")
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Malformed request body"));
     }
 
     private GenerationRequest sample(UUID id) {
@@ -143,6 +165,8 @@ class GenerationRequestControllerTest {
                 false,
                 DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
+                "{\"name\":\"billing-service\"}",
+                OffsetDateTime.parse("2026-03-07T10:15:30Z"),
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
     }
@@ -188,8 +212,8 @@ class GenerationRequestControllerTest {
         }
 
         @Bean
-        GenerationRequestApiMapper generationRequestApiMapper() {
-            return new GenerationRequestApiMapper();
+        GenerationRequestApiMapper generationRequestApiMapper(ObjectMapper objectMapper) {
+            return new GenerationRequestApiMapper(objectMapper);
         }
     }
 }
