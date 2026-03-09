@@ -12,27 +12,20 @@ spec:
       labels:
         app: generator-api
     spec:
-      volumes:
-        - name: generator-api-config-volume
-          configMap:
-            name: generator-api-config
       containers:
         - name: generator-api
           image: scaffoldops/generator-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
-          volumeMounts:
-            - name: generator-api-config-volume
-              mountPath: /config/application.yml
-              subPath: application.yml
           env:
-            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
-              value: "optional:file:/config/"
-            - name: SPRING_DATASOURCE_USERNAME
-              value: "generatorapiuser"
-            - name: SPRING_DATASOURCE_PASSWORD
-              value: "generatorapipassword"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_GENERATOR_API_PASSWORD
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

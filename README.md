@@ -35,8 +35,22 @@ Dependency direction:
 
 ## Run
 ```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+kubectl -n scaffoldops port-forward svc/postgres 5432:5432
 ```
+
+Then start the app locally with the `local` Spring profile:
+
+```bash
+SPRING_PROFILES_ACTIVE=local DB_PASSWORD=... ./mvnw spring-boot:run
+```
+
+Local development uses the PostgreSQL service through `kubectl port-forward`,
+so the application connects to `localhost:5432` while the port-forward session
+is active.
+The dev Kubernetes deployment activates the `dev` Spring profile, which points
+to `postgres.scaffoldops.svc.cluster.local:5432` from inside the cluster.
+`DB_PASSWORD` must be provided from the environment locally and from a
+Kubernetes secret in dev. `DB_USER` defaults to `generatorapiuser`.
 
 ## Test
 ```bash
@@ -64,7 +78,6 @@ docker build -f Dockerfile -t scaffoldops/generator-api:latest .
 
 ## Kubernetes
 Deployment assets live under `k8s/`:
-- `k8s/config`
 - `k8s/deployment`
 
 Shared PostgreSQL infrastructure is managed in `platform-infra`. This repository only owns the generator-api application manifests and runtime configuration.

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
+import com.scaffoldops.generatorapi.presentation.config.SecurityConfiguration;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
@@ -16,6 +17,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
@@ -26,13 +29,18 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = GenerationRequestController.class)
-@Import({GlobalExceptionHandler.class, GenerationRequestControllerTest.MockConfig.class})
+@Import({
+        GlobalExceptionHandler.class,
+        SecurityConfiguration.class,
+        GenerationRequestControllerTest.MockConfig.class
+})
 class GenerationRequestControllerTest {
 
     @Autowired
@@ -50,12 +58,16 @@ class GenerationRequestControllerTest {
     @Autowired
     private ListGenerationRequestsUseCase listGenerationRequestsUseCase;
 
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
     @Test
     void shouldCreateGenerationRequest() throws Exception {
         UUID id = UUID.randomUUID();
         when(createGenerationRequestUseCase.create(any())).thenReturn(sample(id));
 
         mockMvc.perform(post("/generation-requests")
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RequestBodyFixture())))
                 .andExpect(status().isCreated())
@@ -68,7 +80,7 @@ class GenerationRequestControllerTest {
         UUID id = UUID.randomUUID();
         when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.of(sample(id)));
 
-        mockMvc.perform(get("/generation-requests/{id}", id))
+        mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("billing-service"))
                 .andExpect(jsonPath("$.deploymentTarget").value("KUBERNETES"));
@@ -79,7 +91,7 @@ class GenerationRequestControllerTest {
         UUID id = UUID.randomUUID();
         when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/generation-requests/{id}", id))
+        mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Generation request not found"));
     }
@@ -89,7 +101,7 @@ class GenerationRequestControllerTest {
         UUID id = UUID.randomUUID();
         when(listGenerationRequestsUseCase.getAll()).thenReturn(List.of(sample(id)));
 
-        mockMvc.perform(get("/generation-requests"))
+        mockMvc.perform(get("/generation-requests").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(id.toString()));
     }
@@ -97,6 +109,7 @@ class GenerationRequestControllerTest {
     @Test
     void shouldValidateRequestBody() throws Exception {
         mockMvc.perform(post("/generation-requests")
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -111,6 +124,12 @@ class GenerationRequestControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("name size must be between 1 and 2147483647"));
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenRequestHasNoBearerToken() throws Exception {
+        mockMvc.perform(get("/generation-requests"))
+                .andExpect(status().isUnauthorized());
     }
 
     private GenerationRequest sample(UUID id) {
