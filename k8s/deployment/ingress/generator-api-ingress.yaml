@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: generator-api-ingress
+spec:
+  ingressClassName: kong
+  rules:
+    - host: generator-api.local
+      http:
+        paths:
+          - path: /api/generator/v1/generation-requests
+            pathType: Prefix
+            backend:
+              service:
+                name: generator-api-service
+                port:
+                  number: 80

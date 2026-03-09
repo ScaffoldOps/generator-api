@@ -1,0 +1,35 @@
+name: Manual Deploy generator-api
+
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: Kubernetes namespace
+        required: true
+        default: scaffoldops-dev
+        type: string
+      environment_name:
+        description: Deployment environment name
+        required: true
+        default: DEV
+        type: string
+      image_version:
+        description: Docker image tag to deploy
+        required: true
+        default: latest
+        type: string
+
+concurrency:
+  group: manual-deploy-${{ inputs.namespace }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-k8s.yml
+    with:
+      namespace: ${{ inputs.namespace }}
+      environment_name: ${{ inputs.environment_name }}
+      image_version: ${{ inputs.image_version }}

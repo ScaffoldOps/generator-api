@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: ScaffoldOps Generator API
+  description: API for submitting and tracking scaffold generation requests.
+  version: "0.0.1-SNAPSHOT"
+servers:
+  - url: /api/generator/v1
+    description: Base API path
+paths:
+  /generation-requests:
+    post:
+      tags:
+        - GenerationRequest
+      operationId: createGenerationRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGenerationRequestRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationRequestResponse'
+        '400':
+          description: Invalid request
+    get:
+      tags:
+        - GenerationRequest
+      operationId: listGenerationRequests
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GenerationRequestResponse'
+  /generation-requests/{id}:
+    get:
+      tags:
+        - GenerationRequest
+      operationId: getGenerationRequestById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationRequestResponse'
+        '404':
+          description: Not found
+components:
+  schemas:
+    DeploymentTarget:
+      type: string
+      enum:
+        - KUBERNETES
+    GenerationRequestStatus:
+      type: string
+      enum:
+        - RECEIVED
+    CreateGenerationRequestRequest:
+      type: object
+      required:
+        - name
+        - template
+        - deploymentTarget
+      properties:
+        name:
+          type: string
+          minLength: 1
+        template:
+          type: string
+          minLength: 1
+        database:
+          type: boolean
+        restApi:
+          type: boolean
+        security:
+          type: boolean
+        messaging:
+          type: boolean
+        deploymentTarget:
+          $ref: '#/components/schemas/DeploymentTarget'
+    GenerationRequestResponse:
+      type: object
+      required:
+        - id
+        - name
+        - template
+        - deploymentTarget
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        template:
+          type: string
+        database:
+          type: boolean
+        restApi:
+          type: boolean
+        security:
+          type: boolean
+        messaging:
+          type: boolean
+        deploymentTarget:
+          $ref: '#/components/schemas/DeploymentTarget'
+        status:
+          $ref: '#/components/schemas/GenerationRequestStatus'
+        createdAt:
+          type: string
+          format: date-time

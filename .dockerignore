@@ -1,0 +1,12 @@
+**/.git
+**/.github
+**/.idea
+**/.mvn
+**/src
+
+**/target/*
+!target/generator-api.jar
+
+README*
+HELP.md
+*.iml
