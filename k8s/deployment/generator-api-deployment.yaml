@@ -27,14 +27,12 @@ spec:
                   name: postgres-credentials
                   key: POSTGRES_GENERATOR_API_PASSWORD
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 15

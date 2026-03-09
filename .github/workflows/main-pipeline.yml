@@ -138,5 +138,6 @@ jobs:
     uses: ./.github/workflows/deploy-k8s.yml
     with:
       namespace: scaffoldops-pre
-      environment_name: STAGING/PRE
+      environment_name: PRE
+      spring_profile: pre
       image_version: ${{ needs.docker_build.outputs.immutable_tag }}
