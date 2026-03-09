@@ -39,8 +39,6 @@ jobs:
 
           kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
-          kubectl apply -n "${NAMESPACE}" -f k8s/config/generator-api-configmap.yaml
-
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-service.yaml
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-deployment.yaml
           kubectl set image deployment/generator-api-deployment generator-api=${IMAGE_NAME}:${IMAGE_VERSION} -n "${NAMESPACE}"
