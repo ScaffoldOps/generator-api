@@ -1,9 +1,4 @@
 spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://keycloak.security.svc.cluster.local:8080/realms/scaffoldops
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka.scaffoldops-dev.svc.cluster.local:9092}
   datasource:
@@ -15,3 +10,9 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema-postgresql.sql
+
+app:
+  security:
+    jwt:
+      expected-issuer: ${APP_SECURITY_JWT_EXPECTED_ISSUER:http://localhost:8091/realms/scaffoldops}
+      jwk-set-uri: ${APP_SECURITY_JWT_JWK_SET_URI:http://keycloak.security.svc.cluster.local:8080/realms/scaffoldops/protocol/openid-connect/certs}

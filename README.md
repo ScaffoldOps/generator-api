@@ -49,7 +49,7 @@ Then start the app locally with the `local` Spring profile:
 SPRING_PROFILES_ACTIVE=local \
 DB_PASSWORD=... \
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8090/realms/scaffoldops \
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8091/realms/scaffoldops \
 ./mvnw spring-boot:run
 ```
 
