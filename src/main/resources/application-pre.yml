@@ -1,0 +1,17 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak.security.svc.cluster.local:8080/realms/scaffoldops
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka.scaffoldops-pre.svc.cluster.local:9092}
+  datasource:
+    url: jdbc:postgresql://postgres:5432/generatorapidb
+    username: ${DB_USER:generatorapiuser}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-postgresql.sql

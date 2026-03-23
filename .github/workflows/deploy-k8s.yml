@@ -9,6 +9,9 @@ on:
       environment_name:
         required: true
         type: string
+      spring_profile:
+        required: true
+        type: string
       image_version:
         required: true
         type: string
@@ -20,6 +23,7 @@ jobs:
     env:
       NAMESPACE: ${{ inputs.namespace }}
       ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+      SPRING_PROFILE: ${{ inputs.spring_profile }}
       IMAGE_NAME: victodomvar/scaffoldops-generator-api
       IMAGE_VERSION: ${{ inputs.image_version }}
     steps:
@@ -38,9 +42,12 @@ jobs:
           kubectl cluster-info
 
           kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
+          kubectl get secret postgres-credentials -n "${NAMESPACE}" >/dev/null
 
           kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-service.yaml
-          kubectl apply -n "${NAMESPACE}" -f k8s/deployment/generator-api-deployment.yaml
-          kubectl set image deployment/generator-api-deployment generator-api=${IMAGE_NAME}:${IMAGE_VERSION} -n "${NAMESPACE}"
+          sed -e "s|image: .*|image: ${IMAGE_NAME}:${IMAGE_VERSION}|" \
+              -e "s|value: \"dev\"|value: \"${SPRING_PROFILE}\"|" \
+              k8s/deployment/generator-api-deployment.yaml \
+            | kubectl apply -n "${NAMESPACE}" -f -
           kubectl rollout status deployment/generator-api-deployment -n "${NAMESPACE}" --timeout=300s
           kubectl wait --for=condition=ready pod -l app=generator-api -n "${NAMESPACE}" --timeout=300s

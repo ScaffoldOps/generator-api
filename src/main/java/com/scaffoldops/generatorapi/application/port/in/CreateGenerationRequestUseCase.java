@@ -14,7 +14,8 @@ public interface CreateGenerationRequestUseCase {
             boolean restApi,
             boolean security,
             boolean messaging,
-            DeploymentTarget deploymentTarget
+            DeploymentTarget deploymentTarget,
+            String specJson
     ) {
     }
 }

@@ -4,11 +4,16 @@ server:
 spring:
   application:
     name: generator-api
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8090/realms/scaffoldops
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:http://localhost:8091/realms/scaffoldops}
   mvc:
     servlet:
       path: /api/generator/v1
@@ -26,6 +31,11 @@ info:
     title: ScaffoldOps Generator API
     description: API for submitting and tracking scaffold generation requests.
     version: 0.0.1-SNAPSHOT
+
+app:
+  kafka:
+    topics:
+      generation-requested: ${GENERATION_REQUESTED_TOPIC:generation-requested}
 
 management:
   health:

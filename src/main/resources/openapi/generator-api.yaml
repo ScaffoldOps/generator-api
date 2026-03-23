@@ -27,6 +27,28 @@ paths:
                 $ref: '#/components/schemas/GenerationRequestResponse'
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       tags:
         - GenerationRequest
@@ -40,6 +62,24 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GenerationRequestResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /generation-requests/{id}:
     get:
       tags:
@@ -59,8 +99,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GenerationRequestResponse'
+        '400':
+          description: Invalid id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     DeploymentTarget:
@@ -71,6 +139,11 @@ components:
       type: string
       enum:
         - RECEIVED
+        - GENERATING
+        - GENERATED
+        - DEPLOYING
+        - DEPLOYED
+        - FAILED
     CreateGenerationRequestRequest:
       type: object
       required:
@@ -103,6 +176,7 @@ components:
         - deploymentTarget
         - status
         - createdAt
+        - updatedAt
       properties:
         id:
           type: string
@@ -124,5 +198,19 @@ components:
         status:
           $ref: '#/components/schemas/GenerationRequestStatus'
         createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required:
+        - message
+        - timestamp
+      properties:
+        message:
+          type: string
+        timestamp:
           type: string
           format: date-time
