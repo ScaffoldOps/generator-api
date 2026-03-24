@@ -1,5 +1,6 @@
 package com.scaffoldops.generatorapi.application.port.out;
 
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 
 import java.util.List;
@@ -12,5 +13,5 @@ public interface GenerationRequestRepository {
 
     Optional<GenerationRequest> findById(UUID id);
 
-    List<GenerationRequest> findAll();
+    List<GenerationRequest> findAllByFilters(GenerationRequestFilters filters);
 }

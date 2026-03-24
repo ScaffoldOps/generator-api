@@ -1,5 +1,6 @@
 package com.scaffoldops.generatorapi.application.service;
 
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
@@ -74,7 +75,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
 
     @Override
     @Transactional(readOnly = true)
-    public List<GenerationRequest> getAll() {
-        return generationRequestRepository.findAll();
+    public List<GenerationRequest> getAll(GenerationRequestFilters filters) {
+        return generationRequestRepository.findAllByFilters(filters);
     }
 }

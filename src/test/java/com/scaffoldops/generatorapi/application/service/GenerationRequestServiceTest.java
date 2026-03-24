@@ -1,5 +1,6 @@
 package com.scaffoldops.generatorapi.application.service;
 
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestRepository;
@@ -13,7 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,5 +64,42 @@ class GenerationRequestServiceTest {
         assertThat(saved.createdAt()).isNotNull();
         assertThat(saved.updatedAt()).isEqualTo(saved.createdAt());
         verify(generationRequestEventPublisher).publishGenerationRequested(any());
+    }
+
+    @Test
+    void shouldDelegateFiltersWhenListingGenerationRequests() {
+        GenerationRequestFilters filters = new GenerationRequestFilters(
+                "billing-service",
+                "spring-boot-hexagonal",
+                GenerationRequestStatus.RECEIVED,
+                DeploymentTarget.KUBERNETES,
+                true,
+                true,
+                true,
+                false
+        );
+        when(generationRequestRepository.findAllByFilters(filters)).thenReturn(List.of(sample()));
+
+        List<GenerationRequest> results = generationRequestService.getAll(filters);
+
+        assertThat(results).hasSize(1);
+        verify(generationRequestRepository).findAllByFilters(filters);
+    }
+
+    private GenerationRequest sample() {
+        return new GenerationRequest(
+                UUID.randomUUID(),
+                "billing-service",
+                "spring-boot-hexagonal",
+                true,
+                true,
+                true,
+                false,
+                DeploymentTarget.KUBERNETES,
+                GenerationRequestStatus.RECEIVED,
+                "{\"name\":\"billing-service\"}",
+                OffsetDateTime.parse("2026-03-07T10:15:30Z"),
+                OffsetDateTime.parse("2026-03-07T10:15:30Z")
+        );
     }
 }

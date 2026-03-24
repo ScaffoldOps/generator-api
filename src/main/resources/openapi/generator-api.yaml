@@ -53,6 +53,47 @@ paths:
       tags:
         - GenerationRequest
       operationId: listGenerationRequests
+      parameters:
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: template
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GenerationRequestStatus'
+        - name: deploymentTarget
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DeploymentTarget'
+        - name: database
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: restApi
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: security
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: messaging
+          in: query
+          required: false
+          schema:
+            type: boolean
       responses:
         '200':
           description: OK

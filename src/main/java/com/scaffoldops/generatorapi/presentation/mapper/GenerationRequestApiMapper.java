@@ -2,9 +2,11 @@ package com.scaffoldops.generatorapi.presentation.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
+import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
 import org.springframework.http.HttpStatus;
@@ -50,6 +52,28 @@ public class GenerationRequestApiMapper {
                 ))
                 .createdAt(generationRequest.createdAt())
                 .updatedAt(generationRequest.updatedAt());
+    }
+
+    public GenerationRequestFilters toFilters(
+            String name,
+            String template,
+            com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus status,
+            com.scaffoldops.generatorapi.openapi.model.DeploymentTarget deploymentTarget,
+            Boolean database,
+            Boolean restApi,
+            Boolean security,
+            Boolean messaging
+    ) {
+        return new GenerationRequestFilters(
+                name,
+                template,
+                status == null ? null : GenerationRequestStatus.valueOf(status.getValue()),
+                deploymentTarget == null ? null : DeploymentTarget.valueOf(deploymentTarget.getValue()),
+                database,
+                restApi,
+                security,
+                messaging
+        );
     }
 
     private String toSpecJson(CreateGenerationRequestRequest request) {

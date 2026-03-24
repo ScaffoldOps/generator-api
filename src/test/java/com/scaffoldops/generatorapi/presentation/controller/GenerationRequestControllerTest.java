@@ -1,6 +1,7 @@
 package com.scaffoldops.generatorapi.presentation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
@@ -27,8 +28,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -103,11 +106,52 @@ class GenerationRequestControllerTest {
     @Test
     void shouldListGenerationRequests() throws Exception {
         UUID id = UUID.randomUUID();
-        when(listGenerationRequestsUseCase.getAll()).thenReturn(List.of(sample(id)));
+        when(listGenerationRequestsUseCase.getAll(GenerationRequestFilters.empty())).thenReturn(List.of(sample(id)));
 
         mockMvc.perform(get("/generation-requests").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(id.toString()));
+    }
+
+    @Test
+    void shouldListGenerationRequestsUsingFilters() throws Exception {
+        UUID id = UUID.randomUUID();
+        GenerationRequestFilters filters = new GenerationRequestFilters(
+                "billing-service",
+                "spring-boot-hexagonal",
+                GenerationRequestStatus.RECEIVED,
+                DeploymentTarget.KUBERNETES,
+                true,
+                true,
+                true,
+                false
+        );
+        when(listGenerationRequestsUseCase.getAll(eq(filters))).thenReturn(List.of(sample(id)));
+
+        mockMvc.perform(get("/generation-requests")
+                        .with(jwt())
+                        .queryParam("name", "billing-service")
+                        .queryParam("template", "spring-boot-hexagonal")
+                        .queryParam("status", "RECEIVED")
+                        .queryParam("deploymentTarget", "KUBERNETES")
+                        .queryParam("database", "true")
+                        .queryParam("restApi", "true")
+                        .queryParam("security", "true")
+                        .queryParam("messaging", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id.toString()))
+                .andExpect(jsonPath("$[0].name").value("billing-service"));
+
+        verify(listGenerationRequestsUseCase).getAll(filters);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenStatusFilterIsInvalid() throws Exception {
+        mockMvc.perform(get("/generation-requests")
+                        .with(jwt())
+                        .queryParam("status", "UNKNOWN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for status"));
     }
 
     @Test

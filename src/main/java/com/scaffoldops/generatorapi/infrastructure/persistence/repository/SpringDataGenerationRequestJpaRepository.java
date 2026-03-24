@@ -2,8 +2,10 @@ package com.scaffoldops.generatorapi.infrastructure.persistence.repository;
 
 import com.scaffoldops.generatorapi.infrastructure.persistence.entity.GenerationRequestEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.UUID;
 
-public interface SpringDataGenerationRequestJpaRepository extends JpaRepository<GenerationRequestEntity, UUID> {
+public interface SpringDataGenerationRequestJpaRepository extends JpaRepository<GenerationRequestEntity, UUID>,
+        JpaSpecificationExecutor<GenerationRequestEntity> {
 }

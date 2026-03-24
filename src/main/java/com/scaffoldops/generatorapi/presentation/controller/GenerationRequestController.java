@@ -52,9 +52,27 @@ public class GenerationRequestController implements GenerationRequestApi {
     }
 
     @Override
-    public ResponseEntity<List<GenerationRequestResponse>> listGenerationRequests() {
+    public ResponseEntity<List<GenerationRequestResponse>> listGenerationRequests(
+            String name,
+            String template,
+            com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus status,
+            com.scaffoldops.generatorapi.openapi.model.DeploymentTarget deploymentTarget,
+            Boolean database,
+            Boolean restApi,
+            Boolean security,
+            Boolean messaging
+    ) {
         return ResponseEntity.ok(
-                listGenerationRequestsUseCase.getAll().stream()
+                listGenerationRequestsUseCase.getAll(generationRequestApiMapper.toFilters(
+                                name,
+                                template,
+                                status,
+                                deploymentTarget,
+                                database,
+                                restApi,
+                                security,
+                                messaging
+                        )).stream()
                         .map(generationRequestApiMapper::toResponse)
                         .toList()
         );
