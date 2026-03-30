@@ -9,7 +9,7 @@
 - Persists requests in PostgreSQL
 - Publishes a `generation-requested` Kafka event after a request is stored
 - Secures API endpoints with JWT bearer authentication
-- Exposes request status retrieval by id and list endpoints
+- Exposes create, delete, get-by-id, and list endpoints for generation requests
 
 ## What This Service Does Not Do
 - Does not execute generation jobs

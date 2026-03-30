@@ -2,9 +2,10 @@ package com.scaffoldops.generatorapi.application.service;
 
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.DeleteGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
-import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
+import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestRepository;
 import com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
@@ -19,7 +20,7 @@ import java.util.UUID;
 
 @Service
 @Transactional
-public class GenerationRequestService implements CreateGenerationRequestUseCase, GetGenerationRequestUseCase, ListGenerationRequestsUseCase {
+public class GenerationRequestService implements CreateGenerationRequestUseCase, DeleteGenerationRequestUseCase, GetGenerationRequestUseCase, ListGenerationRequestsUseCase {
 
     private final GenerationRequestRepository generationRequestRepository;
     private final GenerationRequestEventPublisher generationRequestEventPublisher;
@@ -71,6 +72,11 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
     @Transactional(readOnly = true)
     public Optional<GenerationRequest> getById(UUID id) {
         return generationRequestRepository.findById(id);
+    }
+
+    @Override
+    public boolean deleteById(UUID id) {
+        return generationRequestRepository.deleteById(id);
     }
 
     @Override

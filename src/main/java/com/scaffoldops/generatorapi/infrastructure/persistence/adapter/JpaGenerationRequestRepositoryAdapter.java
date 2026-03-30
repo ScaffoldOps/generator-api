@@ -42,6 +42,15 @@ public class JpaGenerationRequestRepositoryAdapter implements GenerationRequestR
     }
 
     @Override
+    public boolean deleteById(UUID id) {
+        if (!repository.existsById(id)) {
+            return false;
+        }
+        repository.deleteById(id);
+        return true;
+    }
+
+    @Override
     public List<GenerationRequest> findAllByFilters(GenerationRequestFilters filters) {
         return repository.findAll(buildSpecification(filters), Sort.by(Sort.Direction.DESC, "createdAt")).stream()
                 .map(mapper::toDomain)

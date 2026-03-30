@@ -13,5 +13,7 @@ public interface GenerationRequestRepository {
 
     Optional<GenerationRequest> findById(UUID id);
 
+    boolean deleteById(UUID id);
+
     List<GenerationRequest> findAllByFilters(GenerationRequestFilters filters);
 }

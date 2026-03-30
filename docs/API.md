@@ -7,7 +7,7 @@ Base paths:
 - Actuator: `/actuator`
 
 Authentication:
-- `POST /generation-requests`, `GET /generation-requests`, and `GET /generation-requests/{id}` require a bearer JWT
+- `POST /generation-requests`, `DELETE /generation-requests/{id}`, `GET /generation-requests`, and `GET /generation-requests/{id}` require a bearer JWT
 - Actuator endpoints are public
 - Swagger UI and OpenAPI JSON endpoints are public
 
@@ -24,6 +24,7 @@ Health:
 
 API endpoints:
 - `POST /api/generator/v1/generation-requests`
+- `DELETE /api/generator/v1/generation-requests/{id}`
 - `GET /api/generator/v1/generation-requests/{id}`
 - `GET /api/generator/v1/generation-requests`
 
@@ -41,5 +42,5 @@ Error responses:
 - `400`: validation failure, malformed JSON, or invalid UUID path parameter
 - `401`: missing or invalid bearer token
 - `403`: authenticated but not authorized
-- `404`: request id not found
+- `404`: request id not found for get or delete
 - `500`: unexpected server error

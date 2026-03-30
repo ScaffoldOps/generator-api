@@ -3,6 +3,7 @@ package com.scaffoldops.generatorapi.presentation.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.DeleteGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
 import com.scaffoldops.generatorapi.presentation.config.SecurityConfiguration;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -56,6 +58,9 @@ class GenerationRequestControllerTest {
 
     @Autowired
     private CreateGenerationRequestUseCase createGenerationRequestUseCase;
+
+    @Autowired
+    private DeleteGenerationRequestUseCase deleteGenerationRequestUseCase;
 
     @Autowired
     private GetGenerationRequestUseCase getGenerationRequestUseCase;
@@ -99,6 +104,25 @@ class GenerationRequestControllerTest {
         when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Generation request not found"));
+    }
+
+    @Test
+    void shouldDeleteGenerationRequestById() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(deleteGenerationRequestUseCase.deleteById(id)).thenReturn(true);
+
+        mockMvc.perform(delete("/generation-requests/{id}", id).with(jwt()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDeletingMissingGenerationRequest() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(deleteGenerationRequestUseCase.deleteById(id)).thenReturn(false);
+
+        mockMvc.perform(delete("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Generation request not found"));
     }
@@ -189,6 +213,13 @@ class GenerationRequestControllerTest {
     }
 
     @Test
+    void shouldReturnBadRequestWhenDeleteIdIsInvalid() throws Exception {
+        mockMvc.perform(delete("/generation-requests/{id}", "not-a-uuid").with(jwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for id"));
+    }
+
+    @Test
     void shouldReturnBadRequestWhenRequestBodyIsMalformed() throws Exception {
         mockMvc.perform(post("/generation-requests")
                         .with(jwt())
@@ -243,6 +274,11 @@ class GenerationRequestControllerTest {
         @Bean
         CreateGenerationRequestUseCase createGenerationRequestUseCase() {
             return mock(CreateGenerationRequestUseCase.class);
+        }
+
+        @Bean
+        DeleteGenerationRequestUseCase deleteGenerationRequestUseCase() {
+            return mock(DeleteGenerationRequestUseCase.class);
         }
 
         @Bean

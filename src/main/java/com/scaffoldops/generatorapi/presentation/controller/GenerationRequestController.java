@@ -1,6 +1,7 @@
 package com.scaffoldops.generatorapi.presentation.controller;
 
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.DeleteGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
 import com.scaffoldops.generatorapi.openapi.api.GenerationRequestApi;
@@ -19,17 +20,20 @@ import java.util.UUID;
 public class GenerationRequestController implements GenerationRequestApi {
 
     private final CreateGenerationRequestUseCase createGenerationRequestUseCase;
+    private final DeleteGenerationRequestUseCase deleteGenerationRequestUseCase;
     private final GetGenerationRequestUseCase getGenerationRequestUseCase;
     private final ListGenerationRequestsUseCase listGenerationRequestsUseCase;
     private final GenerationRequestApiMapper generationRequestApiMapper;
 
     public GenerationRequestController(
             CreateGenerationRequestUseCase createGenerationRequestUseCase,
+            DeleteGenerationRequestUseCase deleteGenerationRequestUseCase,
             GetGenerationRequestUseCase getGenerationRequestUseCase,
             ListGenerationRequestsUseCase listGenerationRequestsUseCase,
             GenerationRequestApiMapper generationRequestApiMapper
     ) {
         this.createGenerationRequestUseCase = createGenerationRequestUseCase;
+        this.deleteGenerationRequestUseCase = deleteGenerationRequestUseCase;
         this.getGenerationRequestUseCase = getGenerationRequestUseCase;
         this.listGenerationRequestsUseCase = listGenerationRequestsUseCase;
         this.generationRequestApiMapper = generationRequestApiMapper;
@@ -49,6 +53,14 @@ public class GenerationRequestController implements GenerationRequestApi {
                 .map(generationRequestApiMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found"));
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteGenerationRequestById(UUID id) {
+        if (!deleteGenerationRequestUseCase.deleteById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found");
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @Override

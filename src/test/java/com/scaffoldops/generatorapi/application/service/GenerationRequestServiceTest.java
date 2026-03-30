@@ -86,6 +86,28 @@ class GenerationRequestServiceTest {
         verify(generationRequestRepository).findAllByFilters(filters);
     }
 
+    @Test
+    void shouldDeleteGenerationRequestById() {
+        UUID id = UUID.randomUUID();
+        when(generationRequestRepository.deleteById(id)).thenReturn(true);
+
+        boolean deleted = generationRequestService.deleteById(id);
+
+        assertThat(deleted).isTrue();
+        verify(generationRequestRepository).deleteById(id);
+    }
+
+    @Test
+    void shouldReturnFalseWhenDeletingMissingGenerationRequest() {
+        UUID id = UUID.randomUUID();
+        when(generationRequestRepository.deleteById(id)).thenReturn(false);
+
+        boolean deleted = generationRequestService.deleteById(id);
+
+        assertThat(deleted).isFalse();
+        verify(generationRequestRepository).deleteById(id);
+    }
+
     private GenerationRequest sample() {
         return new GenerationRequest(
                 UUID.randomUUID(),

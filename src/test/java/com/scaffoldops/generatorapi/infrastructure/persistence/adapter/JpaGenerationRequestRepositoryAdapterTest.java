@@ -34,45 +34,29 @@ class JpaGenerationRequestRepositoryAdapterTest {
     void shouldFilterWithAndSemanticsAndSortByCreatedAtDescending() {
         GenerationRequest newestMatch = persist(
                 "payments-service",
-                "spring-boot-hexagonal",
                 true,
                 true,
-                true,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
                 OffsetDateTime.parse("2026-03-08T10:15:30Z")
         );
         GenerationRequest olderMatch = persist(
                 "billing-service",
-                "spring-boot-hexagonal",
                 true,
                 true,
-                true,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
         persist(
                 "analytics-service",
-                "spring-boot-hexagonal",
                 false,
                 true,
-                true,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
                 OffsetDateTime.parse("2026-03-09T10:15:30Z")
         );
         persist(
                 "invoice-service",
-                "spring-boot-hexagonal",
                 true,
                 true,
-                true,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.GENERATING,
                 OffsetDateTime.parse("2026-03-10T10:15:30Z")
         );
@@ -97,23 +81,15 @@ class JpaGenerationRequestRepositoryAdapterTest {
     void shouldReturnAllRequestsSortedByCreatedAtDescendingWhenFiltersAreEmpty() {
         GenerationRequest oldest = persist(
                 "orders-service",
-                "spring-boot-hexagonal",
-                true,
                 true,
                 false,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
                 OffsetDateTime.parse("2026-03-06T10:15:30Z")
         );
         GenerationRequest newest = persist(
                 "payments-service",
-                "spring-boot-hexagonal",
                 true,
                 true,
-                true,
-                false,
-                DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.GENERATING,
                 OffsetDateTime.parse("2026-03-08T10:15:30Z")
         );
@@ -125,26 +101,45 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 .containsSequence(newest.id(), oldest.id());
     }
 
+    @Test
+    void shouldDeleteGenerationRequestById() {
+        GenerationRequest request = persist(
+                "payments-service",
+                true,
+                true,
+                GenerationRequestStatus.RECEIVED,
+                OffsetDateTime.parse("2026-03-08T10:15:30Z")
+        );
+
+        boolean deleted = repositoryAdapter.deleteById(request.id());
+
+        assertThat(deleted).isTrue();
+        assertThat(jpaRepository.findById(request.id())).isEmpty();
+    }
+
+    @Test
+    void shouldReturnFalseWhenDeletingMissingGenerationRequest() {
+        boolean deleted = repositoryAdapter.deleteById(UUID.randomUUID());
+
+        assertThat(deleted).isFalse();
+    }
+
     private GenerationRequest persist(
             String name,
-            String template,
             boolean database,
-            boolean restApi,
             boolean security,
-            boolean messaging,
-            DeploymentTarget deploymentTarget,
             GenerationRequestStatus status,
             OffsetDateTime createdAt
     ) {
         GenerationRequest generationRequest = new GenerationRequest(
                 UUID.randomUUID(),
                 name,
-                template,
+                "spring-boot-hexagonal",
                 database,
-                restApi,
+                true,
                 security,
-                messaging,
-                deploymentTarget,
+                false,
+                DeploymentTarget.KUBERNETES,
                 status,
                 "{\"name\":\"" + name + "\"}",
                 createdAt,
