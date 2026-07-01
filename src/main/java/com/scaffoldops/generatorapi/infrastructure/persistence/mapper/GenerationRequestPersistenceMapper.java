@@ -19,6 +19,9 @@ public class GenerationRequestPersistenceMapper {
                 generationRequest.deploymentTarget(),
                 generationRequest.status(),
                 generationRequest.specJson(),
+                generationRequest.message(),
+                generationRequest.artifactRef(),
+                generationRequest.imageRef(),
                 generationRequest.createdAt(),
                 generationRequest.updatedAt()
         );
@@ -36,6 +39,9 @@ public class GenerationRequestPersistenceMapper {
                 entity.getDeploymentTarget(),
                 entity.getStatus(),
                 entity.getSpecJson(),
+                entity.getMessage(),
+                entity.getArtifactRef(),
+                entity.getImageRef(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

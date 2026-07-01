@@ -14,6 +14,9 @@ public record GenerationRequest(
         DeploymentTarget deploymentTarget,
         GenerationRequestStatus status,
         String specJson,
+        String message,
+        String artifactRef,
+        String imageRef,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

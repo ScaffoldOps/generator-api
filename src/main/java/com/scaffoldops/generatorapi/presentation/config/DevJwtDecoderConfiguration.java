@@ -5,10 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 @Configuration
@@ -16,15 +13,12 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 class DevJwtDecoderConfiguration {
 
     @Bean
-    @ConditionalOnProperty(prefix = "app.security.jwt", name = {"expected-issuer", "jwk-set-uri"})
+    @ConditionalOnProperty(prefix = "spring.security.oauth2.resourceserver.jwt", name = "jwk-set-uri")
     JwtDecoder jwtDecoder(DevJwtProperties properties) {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build();
-        OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefaultWithIssuer(properties.expectedIssuer());
-        jwtDecoder.setJwtValidator(validator);
-        return jwtDecoder;
+        return NimbusJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build();
     }
 
-    @ConfigurationProperties(prefix = "app.security.jwt")
-    record DevJwtProperties(String expectedIssuer, String jwkSetUri) {
+    @ConfigurationProperties(prefix = "spring.security.oauth2.resourceserver.jwt")
+    record DevJwtProperties(String jwkSetUri) {
     }
 }

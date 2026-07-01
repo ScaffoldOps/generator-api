@@ -8,13 +8,14 @@
 - Validates request payloads
 - Persists requests in PostgreSQL
 - Publishes a `generation-requested` Kafka event after a request is stored
+- Accepts internal generation lifecycle callbacks from `generator-worker`
 - Secures API endpoints with JWT bearer authentication
 - Exposes create, delete, get-by-id, and list endpoints for generation requests
 
 ## What This Service Does Not Do
 - Does not execute generation jobs
 - Does not deploy generated services
-- Does not process asynchronous status updates from downstream workers yet
+- Does not run `deployment-worker`
 
 ## Architecture
 Hexagonal (ports and adapters):
@@ -49,7 +50,7 @@ Then start the app locally with the `local` Spring profile:
 SPRING_PROFILES_ACTIVE=local \
 DB_PASSWORD=... \
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8091/realms/scaffoldops \
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080/realms/scaffoldops-dev \
 ./mvnw spring-boot:run
 ```
 
@@ -61,9 +62,19 @@ to `postgres.scaffoldops.svc.cluster.local:5432` from inside the cluster.
 `DB_PASSWORD` must be provided from the environment locally and from a
 Kubernetes secret in dev. `DB_USER` defaults to `generatorapiuser`.
 Kafka defaults to `localhost:9092` locally and can be overridden with
-`KAFKA_BOOTSTRAP_SERVERS`. JWT validation uses the configured issuer URI and
-must point to a reachable Keycloak realm or equivalent OIDC issuer. Local
-startup therefore requires both a reachable Kafka broker and JWT issuer.
+`KAFKA_BOOTSTRAP_SERVERS`. For the MVP, DEV validates JWT signatures against
+the `keycloak-dev` service and the `scaffoldops-dev` realm by using the JWKS
+endpoint directly:
+
+```bash
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak-dev.security.svc.cluster.local:8080/realms/scaffoldops-dev/protocol/openid-connect/certs
+```
+
+DEV intentionally does not validate `issuer-uri`, so tokens generated from a
+local Keycloak port-forward such as `http://localhost:8080/realms/scaffoldops-dev`
+are accepted as long as they are signed by the `scaffoldops-dev` realm keys.
+Local startup therefore requires both a reachable Kafka broker and JWKS
+endpoint.
 
 ## Test
 ```bash
@@ -74,14 +85,21 @@ startup therefore requires both a reachable Kafka broker and JWT issuer.
 See [docs/API.md](docs/API.md).
 OpenAPI source: `src/main/resources/openapi/generator-api.yaml`.
 
+## Local End-to-End Demo
+
+See [docs/local-demo.md](docs/local-demo.md) for the manual
+`generator-api -> Kafka -> generator-worker -> Docker -> callback` flow.
+The guide also documents the worker callback contract required before running
+the demo. `deployment-worker` is intentionally excluded.
+
 ## Runtime Endpoints
 - API base path: `/api/generator/v1`
 - Example API endpoint: `/api/generator/v1/generation-requests`
 - Swagger UI: `/api/generator/v1/swagger-ui.html`
 - OpenAPI JSON: `/api/generator/v1/v3/api-docs`
-- Actuator health: `/actuator/health`
-- Liveness probe: `/actuator/health/liveness`
-- Readiness probe: `/actuator/health/readiness`
+- Actuator health: `/api/generator/v1/actuator/health`
+- Liveness probe: `/api/generator/v1/actuator/health/liveness`
+- Readiness probe: `/api/generator/v1/actuator/health/readiness`
 
 All generation request endpoints require a bearer JWT. Actuator, Swagger UI,
 and OpenAPI JSON endpoints are public. The Kafka topic used for request
@@ -99,3 +117,10 @@ Deployment assets live under `k8s/`:
 - `k8s/deployment`
 
 Shared PostgreSQL infrastructure is managed in `platform-infra`. This repository only owns the generator-api application manifests and runtime configuration.
+
+For the MVP only DEV is active. Use `keycloak-dev` with realm
+`scaffoldops-dev`; PRE can stay scaled down:
+
+```bash
+kubectl -n security scale deploy/keycloak-pre --replicas=0
+```

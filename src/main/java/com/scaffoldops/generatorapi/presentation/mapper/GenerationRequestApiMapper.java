@@ -4,11 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
+import com.scaffoldops.generatorapi.openapi.model.GenerationStatusUpdateRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -50,8 +52,20 @@ public class GenerationRequestApiMapper {
                 .status(com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus.fromValue(
                         generationRequest.status().name()
                 ))
+                .message(generationRequest.message())
+                .artifactRef(generationRequest.artifactRef())
+                .imageRef(generationRequest.imageRef())
                 .createdAt(generationRequest.createdAt())
                 .updatedAt(generationRequest.updatedAt());
+    }
+
+    public UpdateGenerationRequestStatusUseCase.Command toCommand(GenerationStatusUpdateRequest request) {
+        return new UpdateGenerationRequestStatusUseCase.Command(
+                GenerationRequestStatus.valueOf(request.getStatus().getValue()),
+                request.getMessage(),
+                request.getArtifactRef(),
+                request.getImageRef()
+        );
     }
 
     public GenerationRequestFilters toFilters(

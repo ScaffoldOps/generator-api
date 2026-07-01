@@ -13,11 +13,11 @@ class DevJwtDecoderConfigurationTest {
             .withUserConfiguration(DevJwtDecoderConfiguration.class);
 
     @Test
-    void shouldCreateCustomJwtDecoderWhenDevJwtPropertiesAreProvided() {
+    void shouldCreateCustomJwtDecoderWhenJwkSetUriIsProvided() {
         contextRunner
                 .withPropertyValues(
-                        "app.security.jwt.expected-issuer=http://localhost:8091/realms/scaffoldops",
-                        "app.security.jwt.jwk-set-uri=http://keycloak.security.svc.cluster.local:8080/realms/scaffoldops/protocol/openid-connect/certs"
+                        "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8080/realms/scaffoldops-dev",
+                        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://keycloak-dev.security.svc.cluster.local:8080/realms/scaffoldops-dev/protocol/openid-connect/certs"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(JwtDecoder.class);

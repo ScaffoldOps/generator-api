@@ -48,6 +48,15 @@ public class GenerationRequestEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String specJson;
 
+    @Column(columnDefinition = "TEXT")
+    private String message;
+
+    @Column(columnDefinition = "TEXT")
+    private String artifactRef;
+
+    @Column(columnDefinition = "TEXT")
+    private String imageRef;
+
     @Column(nullable = false)
     private OffsetDateTime createdAt;
 
@@ -69,6 +78,9 @@ public class GenerationRequestEntity {
             DeploymentTarget deploymentTarget,
             GenerationRequestStatus status,
             String specJson,
+            String message,
+            String artifactRef,
+            String imageRef,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -82,6 +94,9 @@ public class GenerationRequestEntity {
         this.deploymentTarget = deploymentTarget;
         this.status = status;
         this.specJson = specJson;
+        this.message = message;
+        this.artifactRef = artifactRef;
+        this.imageRef = imageRef;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -124,6 +139,18 @@ public class GenerationRequestEntity {
 
     public String getSpecJson() {
         return specJson;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public String getArtifactRef() {
+        return artifactRef;
+    }
+
+    public String getImageRef() {
+        return imageRef;
     }
 
     public OffsetDateTime getCreatedAt() {

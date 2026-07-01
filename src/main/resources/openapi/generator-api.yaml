@@ -6,6 +6,11 @@ info:
 servers:
   - url: /api/generator/v1
     description: Base API path
+tags:
+  - name: GenerationRequest
+    description: Public operations for scaffold generation requests.
+  - name: InternalGenerationRequest
+    description: Internal service-to-service operations. Not intended for use by end clients.
 paths:
   /generation-requests:
     post:
@@ -214,6 +219,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /internal/generation-requests/{requestId}/status:
+    patch:
+      tags:
+        - InternalGenerationRequest
+      summary: Update generation request status
+      description: Internal callback used by generator-worker to report generation progress and results. Not part of the public client API.
+      operationId: updateGenerationRequestStatus
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: Generation request identifier.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationStatusUpdateRequest'
+      responses:
+        '204':
+          description: Generation request status updated
+        '400':
+          description: Invalid request identifier or status update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Generation request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     DeploymentTarget:
@@ -252,6 +293,27 @@ components:
           type: boolean
         deploymentTarget:
           $ref: '#/components/schemas/DeploymentTarget'
+    GenerationStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Current status reported by generator-worker.
+          enum:
+            - GENERATING
+            - GENERATED
+            - FAILED
+        message:
+          type: string
+          description: Optional progress or failure detail.
+        artifactRef:
+          type: string
+          description: Optional reference to the generated artifact.
+        imageRef:
+          type: string
+          description: Optional reference to the generated container image.
     GenerationRequestResponse:
       type: object
       required:
@@ -282,6 +344,15 @@ components:
           $ref: '#/components/schemas/DeploymentTarget'
         status:
           $ref: '#/components/schemas/GenerationRequestStatus'
+        message:
+          type: string
+          nullable: true
+        artifactRef:
+          type: string
+          nullable: true
+        imageRef:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time

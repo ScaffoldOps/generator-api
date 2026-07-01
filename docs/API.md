@@ -4,7 +4,7 @@ OpenAPI source: `src/main/resources/openapi/generator-api.yaml`
 
 Base paths:
 - API: `/api/generator/v1`
-- Actuator: `/actuator`
+- Actuator: `/api/generator/v1/actuator`
 
 Authentication:
 - `POST /generation-requests`, `DELETE /generation-requests/{id}`, `GET /generation-requests`, and `GET /generation-requests/{id}` require a bearer JWT
@@ -18,15 +18,16 @@ OpenAPI JSON:
 - `/api/generator/v1/v3/api-docs`
 
 Health:
-- `/actuator/health`
-- `/actuator/health/liveness`
-- `/actuator/health/readiness`
+- `/api/generator/v1/actuator/health`
+- `/api/generator/v1/actuator/health/liveness`
+- `/api/generator/v1/actuator/health/readiness`
 
 API endpoints:
 - `POST /api/generator/v1/generation-requests`
 - `DELETE /api/generator/v1/generation-requests/{id}`
 - `GET /api/generator/v1/generation-requests/{id}`
 - `GET /api/generator/v1/generation-requests`
+- `PATCH /api/generator/v1/internal/generation-requests/{requestId}/status`
 
 Create request body:
 - `name`: required, non-empty
@@ -36,6 +37,7 @@ Create request body:
 
 Response fields:
 - `status`: one of `RECEIVED`, `GENERATING`, `GENERATED`, `DEPLOYING`, `DEPLOYED`, `FAILED`
+- `message`, `artifactRef`, and `imageRef`: nullable generation result metadata
 - `createdAt` and `updatedAt`: RFC 3339 timestamps
 
 Error responses:

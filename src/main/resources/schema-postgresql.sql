@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS generation_requests (
     deployment_target VARCHAR(255) NOT NULL,
     status VARCHAR(255) NOT NULL,
     spec_json TEXT NOT NULL,
+    message TEXT,
+    artifact_ref TEXT,
+    image_ref TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT uk_generation_requests_name UNIQUE (name)
@@ -19,3 +22,12 @@ ALTER TABLE generation_requests
 
 ALTER TABLE generation_requests
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS message TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS artifact_ref TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS image_ref TEXT;

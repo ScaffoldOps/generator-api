@@ -241,6 +241,9 @@ class GenerationRequestControllerTest {
                 DeploymentTarget.KUBERNETES,
                 GenerationRequestStatus.RECEIVED,
                 "{\"name\":\"billing-service\"}",
+                null,
+                null,
+                null,
                 OffsetDateTime.parse("2026-03-07T10:15:30Z"),
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
