@@ -5,6 +5,7 @@ import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestU
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestRepository;
+import com.scaffoldops.generatorapi.domain.event.ArtifactCleanupRequestedEvent;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
@@ -93,24 +94,46 @@ class GenerationRequestServiceTest {
 
     @Test
     void shouldDeleteGenerationRequestById() {
-        UUID id = UUID.randomUUID();
+        GenerationRequest request = sample();
+        UUID id = request.id();
+        when(generationRequestRepository.findById(id)).thenReturn(Optional.of(request));
         when(generationRequestRepository.deleteById(id)).thenReturn(true);
 
         boolean deleted = generationRequestService.deleteById(id);
 
         assertThat(deleted).isTrue();
         verify(generationRequestRepository).deleteById(id);
+        ArgumentCaptor<ArtifactCleanupRequestedEvent> captor =
+                ArgumentCaptor.forClass(ArtifactCleanupRequestedEvent.class);
+        verify(generationRequestEventPublisher).publishArtifactCleanupRequested(captor.capture());
+        assertThat(captor.getValue().requestId()).isEqualTo(id);
+        assertThat(captor.getValue().name()).isEqualTo(request.name());
+        assertThat(captor.getValue().deletedAt()).isNotNull();
     }
 
     @Test
     void shouldReturnFalseWhenDeletingMissingGenerationRequest() {
         UUID id = UUID.randomUUID();
+        when(generationRequestRepository.findById(id)).thenReturn(Optional.empty());
+
+        boolean deleted = generationRequestService.deleteById(id);
+
+        assertThat(deleted).isFalse();
+        verify(generationRequestRepository, never()).deleteById(id);
+        verify(generationRequestEventPublisher, never()).publishArtifactCleanupRequested(any());
+    }
+
+    @Test
+    void shouldNotPublishArtifactCleanupWhenDeleteFailsAfterLookup() {
+        GenerationRequest request = sample();
+        UUID id = request.id();
+        when(generationRequestRepository.findById(id)).thenReturn(Optional.of(request));
         when(generationRequestRepository.deleteById(id)).thenReturn(false);
 
         boolean deleted = generationRequestService.deleteById(id);
 
         assertThat(deleted).isFalse();
-        verify(generationRequestRepository).deleteById(id);
+        verify(generationRequestEventPublisher, never()).publishArtifactCleanupRequested(any());
     }
 
     @Test

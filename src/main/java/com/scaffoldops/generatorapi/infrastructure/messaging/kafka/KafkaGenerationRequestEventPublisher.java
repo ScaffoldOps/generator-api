@@ -1,6 +1,7 @@
 package com.scaffoldops.generatorapi.infrastructure.messaging.kafka;
 
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
+import com.scaffoldops.generatorapi.domain.event.ArtifactCleanupRequestedEvent;
 import com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent;
 import com.scaffoldops.generatorapi.infrastructure.config.KafkaTopicProperties;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -9,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class KafkaGenerationRequestEventPublisher implements GenerationRequestEventPublisher {
 
-    private final KafkaTemplate<String, GenerationRequestedEvent> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final KafkaTopicProperties kafkaTopicProperties;
 
     public KafkaGenerationRequestEventPublisher(
-            KafkaTemplate<String, GenerationRequestedEvent> kafkaTemplate,
+            KafkaTemplate<String, Object> kafkaTemplate,
             KafkaTopicProperties kafkaTopicProperties
     ) {
         this.kafkaTemplate = kafkaTemplate;
@@ -23,5 +24,10 @@ public class KafkaGenerationRequestEventPublisher implements GenerationRequestEv
     @Override
     public void publishGenerationRequested(GenerationRequestedEvent event) {
         kafkaTemplate.send(kafkaTopicProperties.generationRequested(), event.requestId().toString(), event);
+    }
+
+    @Override
+    public void publishArtifactCleanupRequested(ArtifactCleanupRequestedEvent event) {
+        kafkaTemplate.send(kafkaTopicProperties.artifactCleanupRequested(), event.requestId().toString(), event);
     }
 }

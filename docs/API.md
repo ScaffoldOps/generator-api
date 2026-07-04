@@ -38,6 +38,10 @@ Create request body:
 Response fields:
 - `status`: one of `RECEIVED`, `GENERATING`, `GENERATED`, `DEPLOYING`, `DEPLOYED`, `FAILED`
 - `message`, `artifactRef`, and `imageRef`: nullable generation result metadata
+
+Deleting a request also publishes `artifact-cleanup-requested` to Kafka when the
+record existed and was deleted. Cleanup is asynchronous; `generator-api` does
+not access the `generator-worker` PVC directly.
 - `createdAt` and `updatedAt`: RFC 3339 timestamps
 
 Error responses:

@@ -21,6 +21,13 @@ The current worker may also publish `deployment-requested` after the image
 build. This demo does not start a consumer for that topic and does not perform
 deployment.
 
+For Kubernetes, generated projects are written by `generator-worker` under
+`/var/lib/generator-worker/manifests/<serviceName>-<requestId>/`. The worker
+deployment mounts `generator-worker-artifacts-pvc` at
+`/var/lib/generator-worker`, so those files survive worker pod recreation. The
+callback still sends a `file://` `artifactRef`; this is MVP persistence, not a
+real Artifact Store or deployment handoff.
+
 ## Callback Contract
 
 `generator-worker` uses this callback contract:
@@ -137,6 +144,11 @@ docker exec scaffoldops-demo-kafka kafka-topics \
 docker exec scaffoldops-demo-kafka kafka-topics \
   --bootstrap-server scaffoldops-demo-kafka:29092 \
   --create --if-not-exists --topic deployment-requested \
+  --partitions 1 --replication-factor 1
+
+docker exec scaffoldops-demo-kafka kafka-topics \
+  --bootstrap-server scaffoldops-demo-kafka:29092 \
+  --create --if-not-exists --topic artifact-cleanup-requested \
   --partitions 1 --replication-factor 1
 ```
 
@@ -276,6 +288,14 @@ find "$PROJECT_DIR/src/main/java" -name 'HelloController.java' -print -quit | gr
 rg -n "Hello from $SERVICE_NAME" "$PROJECT_DIR/src/main/java"
 ```
 
+In Kubernetes, inspect the PVC-backed path from the worker pod:
+
+```bash
+kubectl -n scaffoldops-dev get pvc
+kubectl -n scaffoldops-dev exec deploy/generator-worker -- \
+  find /var/lib/generator-worker/manifests -maxdepth 4 -type f
+```
+
 ## 8. Verify the Docker Image
 
 ```bash
@@ -346,6 +366,33 @@ docker exec scaffoldops-demo-postgres psql \
       FROM generation_requests
       WHERE id = '$REQUEST_ID';"
 ```
+
+## 11. Verify Artifact Cleanup After Delete
+
+`generator-api` publishes `artifact-cleanup-requested` when a generation request
+is deleted. `generator-worker` consumes the event and deletes the matching
+artifact directory. The API never mounts or accesses the worker PVC directly.
+
+Local cleanup check:
+
+```bash
+curl -fsS -X DELETE \
+  -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8081/api/generator/v1/generation-requests/$REQUEST_ID"
+
+test ! -d "$PROJECT_DIR"
+```
+
+Kubernetes cleanup check:
+
+```bash
+kubectl -n scaffoldops-dev logs deploy/generator-worker --tail=100
+kubectl -n scaffoldops-dev exec deploy/generator-worker -- \
+  test ! -d "/var/lib/generator-worker/manifests/$SERVICE_NAME-$REQUEST_ID"
+```
+
+This cleanup is still PVC-based MVP storage. It is not MinIO/S3, a real
+Artifact Store, or a deployment handoff.
 
 ## Troubleshooting
 

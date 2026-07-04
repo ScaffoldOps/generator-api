@@ -8,6 +8,7 @@ import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUs
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestRepository;
+import com.scaffoldops.generatorapi.domain.event.ArtifactCleanupRequestedEvent;
 import com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
@@ -81,7 +82,21 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
 
     @Override
     public boolean deleteById(UUID id) {
-        return generationRequestRepository.deleteById(id);
+        Optional<GenerationRequest> existingRequest = generationRequestRepository.findById(id);
+        if (existingRequest.isEmpty()) {
+            return false;
+        }
+
+        boolean deleted = generationRequestRepository.deleteById(id);
+        if (deleted) {
+            GenerationRequest request = existingRequest.get();
+            generationRequestEventPublisher.publishArtifactCleanupRequested(new ArtifactCleanupRequestedEvent(
+                    request.id(),
+                    request.name(),
+                    OffsetDateTime.now()
+            ));
+        }
+        return deleted;
     }
 
     @Override

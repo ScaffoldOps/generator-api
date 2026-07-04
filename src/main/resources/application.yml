@@ -31,6 +31,7 @@ app:
   kafka:
     topics:
       generation-requested: ${GENERATION_REQUESTED_TOPIC:generation-requested}
+      artifact-cleanup-requested: ${ARTIFACT_CLEANUP_REQUESTED_TOPIC:artifact-cleanup-requested}
 
 management:
   health:

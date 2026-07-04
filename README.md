@@ -8,6 +8,7 @@
 - Validates request payloads
 - Persists requests in PostgreSQL
 - Publishes a `generation-requested` Kafka event after a request is stored
+- Publishes an `artifact-cleanup-requested` Kafka event after a request is deleted
 - Accepts internal generation lifecycle callbacks from `generator-worker`
 - Secures API endpoints with JWT bearer authentication
 - Exposes create, delete, get-by-id, and list endpoints for generation requests
@@ -92,6 +93,29 @@ See [docs/local-demo.md](docs/local-demo.md) for the manual
 The guide also documents the worker callback contract required before running
 the demo. `deployment-worker` is intentionally excluded.
 
+In the Kubernetes MVP, `generator-api` persists the `artifactRef` received from
+`generator-worker` as-is. That reference currently points to the worker pod
+filesystem, backed by the worker PVC:
+
+```text
+file:///var/lib/generator-worker/manifests/<serviceName>-<requestId>/
+```
+
+The generated files survive `generator-worker` pod recreation because
+`generator-worker` mounts `generator-worker-artifacts-pvc` at
+`/var/lib/generator-worker`. This is not a real Artifact Store: there is no
+MinIO/S3 integration, artifact download API, or implemented `deployment-worker`
+in the MVP.
+
+Deleting a request publishes an asynchronous cleanup event to Kafka:
+
+```text
+artifact-cleanup-requested
+```
+
+`generator-api` does not access the worker PVC. `generator-worker` consumes the
+event and removes the corresponding directory from its own filesystem.
+
 ## Runtime Endpoints
 - API base path: `/api/generator/v1`
 - Example API endpoint: `/api/generator/v1/generation-requests`
@@ -104,7 +128,9 @@ the demo. `deployment-worker` is intentionally excluded.
 All generation request endpoints require a bearer JWT. Actuator, Swagger UI,
 and OpenAPI JSON endpoints are public. The Kafka topic used for request
 publication defaults to `generation-requested` and can be overridden with
-`GENERATION_REQUESTED_TOPIC`.
+`GENERATION_REQUESTED_TOPIC`. The artifact cleanup topic defaults to
+`artifact-cleanup-requested` and can be overridden with
+`ARTIFACT_CLEANUP_REQUESTED_TOPIC`.
 
 ## Docker
 ```bash
