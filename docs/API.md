@@ -38,11 +38,18 @@ Create request body:
 Response fields:
 - `status`: one of `RECEIVED`, `GENERATING`, `GENERATED`, `DEPLOYING`, `DEPLOYED`, `FAILED`
 - `message`, `artifactRef`, and `imageRef`: nullable generation result metadata
-
-Deleting a request also publishes `artifact-cleanup-requested` to Kafka when the
-record existed and was deleted. Cleanup is asynchronous; `generator-api` does
-not access the `generator-worker` PVC directly.
 - `createdAt` and `updatedAt`: RFC 3339 timestamps
+
+Delete cleanup behavior:
+- `DELETE /generation-requests/{id}` removes the request record from PostgreSQL
+  and publishes `artifact-cleanup-requested` to Kafka when the record existed.
+- The topic defaults to `artifact-cleanup-requested` and can be overridden with
+  `ARTIFACT_CLEANUP_REQUESTED_TOPIC`.
+- Cleanup is asynchronous and eventually consistent, not transactional with the
+  database delete.
+- `generator-api` owns request lifecycle state and the deletion API, but it
+  must not access the `generator-worker` PVC directly. `generator-worker` owns
+  generated artifacts and PVC cleanup.
 
 Error responses:
 - `400`: validation failure, malformed JSON, or invalid UUID path parameter

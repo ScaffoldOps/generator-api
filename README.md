@@ -17,6 +17,7 @@
 - Does not execute generation jobs
 - Does not deploy generated services
 - Does not run `deployment-worker`
+- Does not mount or access the `generator-worker` PVC directly
 
 ## Architecture
 Hexagonal (ports and adapters):
@@ -113,8 +114,21 @@ Deleting a request publishes an asynchronous cleanup event to Kafka:
 artifact-cleanup-requested
 ```
 
-`generator-api` does not access the worker PVC. `generator-worker` consumes the
-event and removes the corresponding directory from its own filesystem.
+The cleanup flow is:
+
+```text
+DELETE /generation-requests/{id}
+  -> generator-api deletes the PostgreSQL request row
+  -> generator-api publishes artifact-cleanup-requested
+  -> generator-worker consumes the event
+  -> generator-worker deletes /var/lib/generator-worker/manifests/<serviceName>-<requestId>/
+```
+
+`generator-api` owns request lifecycle state and the deletion API.
+`generator-worker` owns generated artifacts and PVC cleanup. `generator-api`
+must not access the worker PVC directly. Cleanup is eventually consistent, not
+transactional with the database delete; if `generator-worker` is down, cleanup
+waits until Kafka is consumed.
 
 ## Runtime Endpoints
 - API base path: `/api/generator/v1`

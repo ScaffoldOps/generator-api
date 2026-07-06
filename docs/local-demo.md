@@ -371,7 +371,20 @@ docker exec scaffoldops-demo-postgres psql \
 
 `generator-api` publishes `artifact-cleanup-requested` when a generation request
 is deleted. `generator-worker` consumes the event and deletes the matching
-artifact directory. The API never mounts or accesses the worker PVC directly.
+artifact directory from `/var/lib/generator-worker/manifests`. The API owns the
+request lifecycle and deletion endpoint, while the worker owns generated
+artifacts and PVC cleanup. The API never mounts or accesses the worker PVC
+directly.
+
+The cleanup flow is:
+
+```text
+DELETE /generation-requests/{id}
+  -> generator-api
+  -> Kafka topic artifact-cleanup-requested
+  -> generator-worker
+  -> PVC directory deletion
+```
 
 Local cleanup check:
 
@@ -386,13 +399,23 @@ test ! -d "$PROJECT_DIR"
 Kubernetes cleanup check:
 
 ```bash
-kubectl -n scaffoldops-dev logs deploy/generator-worker --tail=100
+kubectl -n scaffoldops-dev exec deploy/generator-worker -- \
+  ls -la /var/lib/generator-worker/manifests
+
+curl -fsS -X DELETE \
+  -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8081/api/generator/v1/generation-requests/$REQUEST_ID"
+
+kubectl -n scaffoldops-dev logs deploy/generator-worker --tail=150 | grep -i cleanup
 kubectl -n scaffoldops-dev exec deploy/generator-worker -- \
   test ! -d "/var/lib/generator-worker/manifests/$SERVICE_NAME-$REQUEST_ID"
 ```
 
 This cleanup is still PVC-based MVP storage. It is not MinIO/S3, a real
-Artifact Store, or a deployment handoff.
+Artifact Store, or a deployment handoff. Cleanup is eventually consistent, not
+transactional with the PostgreSQL delete; if `generator-worker` is down, cleanup
+waits until the `artifact-cleanup-requested` event is consumed. Full
+reconciliation of stuck cleanup or generation states remains future work.
 
 ## Troubleshooting
 
