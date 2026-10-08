@@ -42,6 +42,9 @@ public class JpaGenerationRequestRepositoryAdapter implements GenerationRequestR
     }
 
     @Override
+    public void lockById(UUID id) { repository.findLockedById(id); }
+
+    @Override
     public boolean deleteById(UUID id) {
         if (!repository.existsById(id)) {
             return false;

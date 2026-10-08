@@ -49,3 +49,5 @@ ALTER TABLE generation_requests
 -- Additive migration for existing installations; safe to run repeatedly.
 ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS failure_stage VARCHAR(255);
 ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
+
+ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS recovery_reserved_until TIMESTAMP WITH TIME ZONE;

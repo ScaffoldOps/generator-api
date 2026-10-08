@@ -17,6 +17,11 @@ import java.util.UUID;
 @Table(name = "generation_requests")
 public class GenerationRequestEntity {
 
+    @Column(name = "recovery_reserved_until")
+    private OffsetDateTime recoveryReservedUntil;
+
+    public void reserveRecovery(OffsetDateTime until) { recoveryReservedUntil = until; }
+
     @Id
     private UUID id;
 

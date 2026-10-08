@@ -30,6 +30,7 @@ info:
 app:
   kafka:
     topics:
+      image-build-retry-requested: ${IMAGE_BUILD_RETRY_REQUESTED_TOPIC:image-build-retry-requested}
       generation-requested: ${GENERATION_REQUESTED_TOPIC:generation-requested}
       deployment-requested: ${DEPLOYMENT_REQUESTED_TOPIC:deployment-requested}
       undeployment-requested: ${UNDEPLOYMENT_REQUESTED_TOPIC:undeployment-requested}
@@ -56,3 +57,12 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+scaffoldops:
+  generation:
+    recovery:
+      enabled: ${GENERATION_RECOVERY_ENABLED:true}
+      fixed-delay: ${GENERATION_RECOVERY_FIXED_DELAY:5m}
+      max-retries: ${GENERATION_RECOVERY_MAX_RETRIES:5}
+      batch-size: ${GENERATION_RECOVERY_BATCH_SIZE:10}
+      reservation-timeout: ${GENERATION_RECOVERY_RESERVATION_TIMEOUT:30m}

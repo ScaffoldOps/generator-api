@@ -210,3 +210,37 @@ Generation events and callbacks use `generationStatus`. The worker accepts legac
 event `status` during migration. Diagnostics `message`, `failureStage`, and
 `retryCount` describe failures without adding user-facing statuses. Image
 build/push retries default to three attempts with a fixed one-second backoff.
+
+### Automatic image recovery
+
+The API scheduler recovers only `GENERATION_FAILED` rows with a nonblank artifact, no image,
+and `IMAGE_BUILD` or `IMAGE_PUSH` failure. It never requests deployment.
+
+Configuration under `scaffoldops.generation.recovery`:
+
+| Key | Default |
+| --- | --- |
+| enabled | true |
+| fixed-delay | 5m |
+| max-retries | 5 |
+| batch-size | 10 |
+| reservation-timeout | 30m |
+
+Environment overrides: `GENERATION_RECOVERY_ENABLED`, `GENERATION_RECOVERY_FIXED_DELAY`,
+`GENERATION_RECOVERY_MAX_RETRIES`, `GENERATION_RECOVERY_BATCH_SIZE`, `GENERATION_RECOVERY_RESERVATION_TIMEOUT`.
+`app.kafka.topics.image-build-retry-requested` defaults to `image-build-retry-requested`.
+Its payload contains `generationRequestId`, `name`, `template`, `database`, `restApi`, `security`,
+`messaging`, `deploymentTarget`, `artifactRef`, `retryAttempt`, and `failureStage`.
+
+PostgreSQL `FOR UPDATE SKIP LOCKED` reserves a batch in one short transaction before Kafka publication.
+The existing `GENERATION_FAILED` status remains visible; a private reservation timestamp excludes in-flight rows.
+Callbacks clear the reservation. A crashed publisher/worker can be retried after the reservation timeout;
+set this longer than the worst expected Kafka queue delay plus build/push time.
+Kafka delivery is at least once, so a redelivery may repeat a build of the same deterministic image tag.
+Publication failures consume a reserved attempt and expire normally; even outages cannot cause unbounded scheduling.
+`retryCount` is cumulative: existing worker retries count toward the configured maximum, and each scheduler
+reservation adds one. Worker-local attempts during recovery do not increase it again.
+
+For existing databases apply `docs/image-recovery.sql` before starting the API with schema validation.
+The local SQL initializer applies the same idempotent change. No cleanup is required. NULL retry counts
+are treated as zero; rows without an artifact or an eligible failure stage are deliberately ignored.

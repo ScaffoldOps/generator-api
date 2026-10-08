@@ -13,6 +13,9 @@ public interface GenerationRequestRepository {
 
     Optional<GenerationRequest> findById(UUID id);
 
+    /** Serialize lifecycle callbacks with scheduler reservations. Requires a write transaction. */
+    default void lockById(UUID id) { }
+
     boolean deleteById(UUID id);
 
     List<GenerationRequest> findAllByFilters(GenerationRequestFilters filters);

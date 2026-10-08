@@ -214,13 +214,24 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
             UUID requestId,
             UpdateGenerationRequestStatusUseCase.Command command
     ) {
+        generationRequestRepository.lockById(requestId);
         Optional<GenerationRequest> existingRequest = generationRequestRepository.findById(requestId);
         if (existingRequest.isEmpty()) {
             return UpdateGenerationRequestStatusUseCase.Result.NOT_FOUND;
         }
 
         GenerationRequest current = existingRequest.get();
-        if (!isValidGenerationTransition(current.generationStatus(), command.generationStatus())) {
+        if (command.retryCount() != null && current.retryCount() != null
+                && command.retryCount() < current.retryCount()) {
+            return UpdateGenerationRequestStatusUseCase.Result.INVALID_TRANSITION;
+        }
+        boolean recoveryCompletion = current.generationStatus() == GenerationStatus.GENERATION_FAILED
+                && !isBlank(current.artifactRef()) && isBlank(current.imageRef())
+                && ("IMAGE_BUILD".equals(current.failureStage()) || "IMAGE_PUSH".equals(current.failureStage()))
+                && current.retryCount() != null && current.retryCount() > 0
+                && command.retryCount() != null && command.retryCount().equals(current.retryCount())
+                && command.generationStatus() == GenerationStatus.GENERATED;
+        if (!recoveryCompletion && !isValidGenerationTransition(current.generationStatus(), command.generationStatus())) {
             return UpdateGenerationRequestStatusUseCase.Result.INVALID_TRANSITION;
         }
 
@@ -251,7 +262,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.createdAt(),
                 OffsetDateTime.now(),
                 command.failureStage(),
-                command.retryCount() != null ? command.retryCount() : current.retryCount()
+                command.retryCount() != null ? Math.max(command.retryCount(), current.retryCount() == null ? 0 : current.retryCount()) : current.retryCount()
         );
         generationRequestRepository.save(updated);
         return UpdateGenerationRequestStatusUseCase.Result.UPDATED;
