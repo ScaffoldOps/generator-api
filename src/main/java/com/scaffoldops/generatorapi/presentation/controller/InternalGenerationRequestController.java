@@ -46,6 +46,10 @@ public class InternalGenerationRequestController implements InternalGenerationRe
                     HttpStatus.NOT_FOUND,
                     "Generation request not found"
             );
+            case INVALID_REFERENCES -> throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "GENERATED requires nonblank artifactRef and imageRef"
+            );
             case INVALID_TRANSITION -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Invalid generation request status transition"

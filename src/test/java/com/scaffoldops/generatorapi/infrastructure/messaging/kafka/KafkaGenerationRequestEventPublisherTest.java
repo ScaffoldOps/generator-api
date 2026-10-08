@@ -19,13 +19,13 @@ import static org.mockito.Mockito.verify;
 class KafkaGenerationRequestEventPublisherTest {
 
     @Test
-    void shouldPublishGenerationRequestedToConfiguredTopic() {
+    void shouldPublishGenerationRequestedToConfiguredTopic() throws Exception {
         KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
         KafkaGenerationRequestEventPublisher publisher = new KafkaGenerationRequestEventPublisher(
                 kafkaTemplate,
                 topics()
         );
-        UUID requestId = UUID.randomUUID();
+        UUID requestId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         GenerationRequestedEvent event = new GenerationRequestedEvent(
                 requestId,
                 "billing-service",
@@ -41,7 +41,16 @@ class KafkaGenerationRequestEventPublisherTest {
 
         publisher.publishGenerationRequested(event);
 
-        verify(kafkaTemplate).send("generation-requested", requestId.toString(), event);
+        org.mockito.ArgumentCaptor<Object> published = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(kafkaTemplate).send(org.mockito.ArgumentMatchers.eq("generation-requested"),
+                org.mockito.ArgumentMatchers.eq(requestId.toString()), published.capture());
+        try (var serializer = new org.springframework.kafka.support.serializer.JsonSerializer<Object>();
+             var fixture = getClass().getResourceAsStream("/contracts/generation-requested.json")) {
+            var mapper = org.springframework.kafka.support.JacksonUtils.enhancedObjectMapper();
+            org.assertj.core.api.Assertions.assertThat(mapper.readTree(
+                    serializer.serialize("generation-requested", published.getValue())))
+                    .isEqualTo(mapper.readTree(fixture));
+        }
     }
 
     @Test

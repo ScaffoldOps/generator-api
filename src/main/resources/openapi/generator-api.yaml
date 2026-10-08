@@ -220,6 +220,12 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          description: GENERATED requires nonblank artifactRef and imageRef
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /internal/generation-requests/{requestId}/deployment-status:
     patch:
       tags:
@@ -359,9 +365,18 @@ components:
       required:
         - generationStatus
       properties:
+        failureStage:
+          type: string
+          nullable: true
+          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
+          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Number of additional image build/push attempts performed.
         generationStatus:
           type: string
-          description: Current generation status reported by generator-worker.
+          description: Current generation status reported by generator-worker. GENERATED requires nonblank artifactRef and imageRef after artifact upload and Docker image push.
           enum:
             - GENERATING
             - GENERATED
@@ -407,6 +422,15 @@ components:
         - createdAt
         - updatedAt
       properties:
+        failureStage:
+          type: string
+          nullable: true
+          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
+          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Number of additional image build/push attempts performed.
         id:
           type: string
           format: uuid

@@ -71,7 +71,11 @@ class GenerationRequestServiceTest {
         assertThat(saved.deploymentStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
         assertThat(saved.specJson()).isEqualTo("{\"name\":\"billing-service\"}");
         assertThat(saved.updatedAt()).isEqualTo(saved.createdAt());
-        verify(generationRequestEventPublisher).publishGenerationRequested(any());
+        ArgumentCaptor<com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent.class);
+        verify(generationRequestEventPublisher).publishGenerationRequested(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().generationStatus()).isEqualTo(GenerationStatus.RECEIVED);
+        assertThat(eventCaptor.getValue().requestId()).isEqualTo(saved.id());
         verify(generationRequestEventPublisher, never()).publishDeploymentRequested(any());
     }
 
@@ -405,6 +409,59 @@ class GenerationRequestServiceTest {
         assertThat(result).isEqualTo(UpdateGenerationRequestStatusUseCase.Result.UPDATED);
         assertThat(captor.getValue().message()).isEqualTo(current.message());
         assertThat(captor.getValue().artifactRef()).isEqualTo(current.artifactRef());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullAndEmptySource
+    @org.junit.jupiter.params.provider.ValueSource(strings = {" ", "\t"})
+    void shouldRejectGeneratedAndDeploymentWithMissingReferences(String missing) {
+        for (boolean missingArtifact : new boolean[] {true, false}) {
+            GenerationRequest current = withArtifactAndImageRefs(
+                    withStatuses(sample(), GenerationStatus.GENERATING, DeploymentStatus.NOT_DEPLOYED),
+                    missingArtifact ? missing : "s3://artifacts/billing.zip",
+                    missingArtifact ? "registry/billing:latest" : missing);
+            when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+            assertThat(generationRequestService.updateGenerationStatus(current.id(),
+                    new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATED, null, null, null)))
+                    .isEqualTo(UpdateGenerationRequestStatusUseCase.Result.INVALID_REFERENCES);
+            GenerationRequest generated = withStatuses(current, GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED);
+            when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(generated));
+            assertThat(generationRequestService.requestDeployment(deployCommand(current.id())))
+                    .isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+        }
+        verify(generationRequestRepository, never()).save(any());
+        verify(generationRequestEventPublisher, never()).publishDeploymentRequested(any());
+    }
+
+    @Test
+    void shouldAcceptGeneratedOnlyWithBothReferences() {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATING, DeploymentStatus.NOT_DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.updateGenerationStatus(current.id(),
+                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATED,
+                        "Generation completed successfully", "s3://artifacts/billing.zip", "registry/billing:latest", null, 1)))
+                .isEqualTo(UpdateGenerationRequestStatusUseCase.Result.UPDATED);
+        ArgumentCaptor<GenerationRequest> saved = ArgumentCaptor.forClass(GenerationRequest.class);
+        verify(generationRequestRepository).save(saved.capture());
+        assertThat(saved.getValue().generationStatus()).isEqualTo(GenerationStatus.GENERATED);
+        assertThat(saved.getValue().retryCount()).isEqualTo(1);
+        assertThat(saved.getValue().failureStage()).isNull();
+    }
+
+    @Test
+    void shouldPersistImageFailureDiagnosticsAndClearStaleImage() {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATING, DeploymentStatus.NOT_DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.updateGenerationStatus(current.id(),
+                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATION_FAILED,
+                        "Docker push failed after 3 attempts", null, null, "IMAGE_PUSH", 2)))
+                .isEqualTo(UpdateGenerationRequestStatusUseCase.Result.UPDATED);
+        ArgumentCaptor<GenerationRequest> saved = ArgumentCaptor.forClass(GenerationRequest.class);
+        verify(generationRequestRepository).save(saved.capture());
+        assertThat(saved.getValue().artifactRef()).isEqualTo(current.artifactRef());
+        assertThat(saved.getValue().imageRef()).isNull();
+        assertThat(saved.getValue().failureStage()).isEqualTo("IMAGE_PUSH");
+        assertThat(saved.getValue().retryCount()).isEqualTo(2);
     }
 
     private GenerationRequest sample() {

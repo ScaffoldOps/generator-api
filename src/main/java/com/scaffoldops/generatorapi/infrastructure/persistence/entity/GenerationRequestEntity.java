@@ -65,6 +65,17 @@ public class GenerationRequestEntity {
     @Column(columnDefinition = "TEXT")
     private String deploymentNamespace;
 
+    @Column(name = "failure_stage")
+    private String failureStage;
+
+    @Column(name = "retry_count")
+    private Integer retryCount;
+
+    public String getFailureStage() { return failureStage; }
+    public void setFailureStage(String failureStage) { this.failureStage = failureStage; }
+    public Integer getRetryCount() { return retryCount; }
+    public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+
     @Column(nullable = false)
     private OffsetDateTime createdAt;
 

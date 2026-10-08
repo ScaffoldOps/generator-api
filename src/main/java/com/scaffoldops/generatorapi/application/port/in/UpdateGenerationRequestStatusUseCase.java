@@ -12,13 +12,19 @@ public interface UpdateGenerationRequestStatusUseCase {
             GenerationStatus generationStatus,
             String message,
             String artifactRef,
-            String imageRef
+            String imageRef,
+            String failureStage,
+            Integer retryCount
     ) {
+        public Command(GenerationStatus generationStatus, String message, String artifactRef, String imageRef) {
+            this(generationStatus, message, artifactRef, imageRef, null, null);
+        }
     }
 
     enum Result {
         UPDATED,
         NOT_FOUND,
+        INVALID_REFERENCES,
         INVALID_TRANSITION
     }
 }

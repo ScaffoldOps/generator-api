@@ -153,12 +153,16 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 "registry/catalog:latest",
                 "scaffoldops-dev",
                 createdAt,
-                createdAt.plusMinutes(2)
+                createdAt.plusMinutes(2),
+                "IMAGE_PUSH",
+                2
         );
 
         GenerationRequest saved = repositoryAdapter.save(request);
         GenerationRequest reloaded = repositoryAdapter.findById(saved.id()).orElseThrow();
 
+        assertThat(reloaded.failureStage()).isEqualTo("IMAGE_PUSH");
+        assertThat(reloaded.retryCount()).isEqualTo(2);
         assertThat(reloaded.generationStatus()).isEqualTo(GenerationStatus.GENERATED);
         assertThat(reloaded.deploymentStatus()).isEqualTo(DeploymentStatus.DEPLOYED);
         assertThat(reloaded.message()).isEqualTo("Generation completed");

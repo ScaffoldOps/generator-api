@@ -82,7 +82,7 @@ public class GenerationRequestController implements GenerationRequestApi {
             case NOT_FOUND -> throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found");
             case INVALID_TRANSITION -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Generation request cannot be deployed from its current lifecycle state"
+                    "Deployment requires GENERATED with nonblank artifactRef and imageRef, an eligible deployment state, and a valid namespace and replica count"
             );
         };
     }

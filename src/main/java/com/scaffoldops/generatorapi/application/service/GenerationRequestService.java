@@ -144,7 +144,9 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.imageRef(),
                 command.namespace(),
                 current.createdAt(),
-                now
+                now,
+                current.failureStage(),
+                current.retryCount()
         );
         GenerationRequest saved = generationRequestRepository.save(updated);
         generationRequestEventPublisher.publishDeploymentRequested(new DeploymentRequestedEvent(
@@ -190,7 +192,9 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.imageRef(),
                 current.deploymentNamespace(),
                 current.createdAt(),
-                now
+                now,
+                current.failureStage(),
+                current.retryCount()
         );
         GenerationRequest saved = generationRequestRepository.save(updated);
         generationRequestEventPublisher.publishUndeploymentRequested(new UndeploymentRequestedEvent(
@@ -220,6 +224,14 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
             return UpdateGenerationRequestStatusUseCase.Result.INVALID_TRANSITION;
         }
 
+        String artifactRef = command.artifactRef() != null ? command.artifactRef() : current.artifactRef();
+        String imageRef = command.generationStatus() == GenerationStatus.GENERATION_FAILED ? null
+                : command.imageRef() != null ? command.imageRef() : current.imageRef();
+        if (command.generationStatus() == GenerationStatus.GENERATED
+                && (isBlank(artifactRef) || isBlank(imageRef))) {
+            return UpdateGenerationRequestStatusUseCase.Result.INVALID_REFERENCES;
+        }
+
         GenerationRequest updated = new GenerationRequest(
                 current.id(),
                 current.name(),
@@ -233,11 +245,13 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.deploymentStatus(),
                 current.specJson(),
                 command.message() != null ? command.message() : current.message(),
-                command.artifactRef() != null ? command.artifactRef() : current.artifactRef(),
-                command.imageRef() != null ? command.imageRef() : current.imageRef(),
+                artifactRef,
+                imageRef,
                 current.deploymentNamespace(),
                 current.createdAt(),
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                command.failureStage(),
+                command.retryCount() != null ? command.retryCount() : current.retryCount()
         );
         generationRequestRepository.save(updated);
         return UpdateGenerationRequestStatusUseCase.Result.UPDATED;
@@ -275,7 +289,9 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 command.imageRef() != null ? command.imageRef() : current.imageRef(),
                 current.deploymentNamespace(),
                 current.createdAt(),
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                current.failureStage(),
+                current.retryCount()
         );
         generationRequestRepository.save(updated);
         return UpdateDeploymentRequestStatusUseCase.Result.UPDATED;
@@ -310,7 +326,8 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
         if (current == target) {
             return true;
         }
-        return current == GenerationStatus.RECEIVED && target == GenerationStatus.GENERATING
+        return current == GenerationStatus.RECEIVED && (target == GenerationStatus.GENERATING
+                || target == GenerationStatus.GENERATION_FAILED)
                 || current == GenerationStatus.GENERATING
                 && (target == GenerationStatus.GENERATED || target == GenerationStatus.GENERATION_FAILED);
     }

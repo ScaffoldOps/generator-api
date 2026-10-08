@@ -54,6 +54,36 @@ class InternalGenerationRequestControllerTest {
     private JwtDecoder jwtDecoder;
 
     @Test
+    void shouldRejectGeneratedWithoutPublishedReferences() throws Exception {
+        UUID requestId = UUID.randomUUID();
+        when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))
+                .thenReturn(UpdateGenerationRequestStatusUseCase.Result.INVALID_REFERENCES);
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", requestId)
+                        .with(jwt()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"generationStatus\":\"GENERATED\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value("GENERATED requires nonblank artifactRef and imageRef"));
+    }
+
+    @Test
+    void shouldMapFailureDiagnosticsFromWorkerCallback() throws Exception {
+        UUID requestId = UUID.randomUUID();
+        when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))
+                .thenReturn(UpdateGenerationRequestStatusUseCase.Result.UPDATED);
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", requestId)
+                        .with(jwt()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"generationStatus":"GENERATION_FAILED", "message":"push failed",
+                                 "artifactRef":"s3://artifacts/billing.zip", "imageRef":null,
+                                 "failureStage":"IMAGE_PUSH", "retryCount":2}
+                                """))
+                .andExpect(status().isNoContent());
+        verify(updateGenerationRequestStatusUseCase).updateGenerationStatus(requestId,
+                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATION_FAILED,
+                        "push failed", "s3://artifacts/billing.zip", null, "IMAGE_PUSH", 2));
+    }
+
+    @Test
     void shouldUpdateGenerationRequestGenerationStatus() throws Exception {
         UUID requestId = UUID.randomUUID();
         when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))

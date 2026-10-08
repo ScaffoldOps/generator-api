@@ -69,3 +69,36 @@ Error responses:
 - `404`: request id not found for get or delete
 - `409`: invalid lifecycle transition or duplicate deploy/undeploy request
 - `500`: unexpected server error
+
+## Generation event contract and nullable responses
+
+The `generation-requested` event uses `generationStatus` (initially `RECEIVED`). The
+worker also accepts the legacy `status` field during migration. Deploy
+the compatible worker before the API publisher. REST lifecycle fields continue
+to use `generationStatus` and `deploymentStatus`.
+
+Response fields `message`, `artifactRef`, `imageRef`, and `deploymentNamespace`
+are JSON strings or explicit nulls. OpenAPI generation uses `openApiNullable=false`
+because these models do not require a distinction between absent and null values.
+The shared `src/test/resources/contracts/generation-requested.json` fixture is
+checked against the API Kafka serializer and consumed by the worker contract test.
+
+## Full generation pipeline
+
+`RECEIVED -> GENERATING -> GENERATED`, or
+`RECEIVED -> GENERATING -> GENERATION_FAILED`. `GENERATED` means the artifact
+has been produced and published and the Docker image has been built and pushed;
+both `artifactRef` and `imageRef` must be nonblank. Incomplete GENERATED callbacks
+return 422. Deployment is a separate user action after GENERATED; missing refs
+or an ineligible lifecycle return 409 with a validation message.
+
+Callbacks use `generationStatus`, `message`, `artifactRef`, `imageRef`,
+`failureStage`, and `retryCount`. On image failure the artifact is retained and
+the image reference is cleared. `failureStage` is one of ARTIFACT_GENERATION,
+ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN. `retryCount` counts
+additional image attempts (0 for the first attempt, 2 when three attempts are
+exhausted). Diagnostics do not introduce additional lifecycle statuses.
+
+The SQL initialization script adds nullable `failure_stage` and `retry_count`
+columns for existing installations. OpenAPI response fields remain strings,
+numbers, or nulls through `openApiNullable=false`.

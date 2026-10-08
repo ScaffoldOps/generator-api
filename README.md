@@ -41,7 +41,10 @@ generationStatus = RECEIVED
 deploymentStatus = NOT_DEPLOYED
 ```
 
-Deployment can be requested only after generation reaches `GENERATED`. Invalid or duplicate deployment and undeployment requests return `409 Conflict`.
+`GENERATED` confirms that artifact generation/upload and Docker image build/push succeeded,
+with nonblank `artifactRef` and `imageRef`. The lifecycle is
+`RECEIVED -> GENERATING -> GENERATED` or `RECEIVED -> GENERATING -> GENERATION_FAILED`.
+Deployment is a separate user action and requires `GENERATED` plus both references. Invalid or duplicate deployment and undeployment requests return `409 Conflict`.
 
 ## Architecture
 Hexagonal (ports and adapters):
@@ -202,3 +205,8 @@ For the MVP only DEV is active. Use `keycloak-dev` with realm
 ```bash
 kubectl -n security scale deploy/keycloak-pre --replicas=0
 ```
+
+Generation events and callbacks use `generationStatus`. The worker accepts legacy
+event `status` during migration. Diagnostics `message`, `failureStage`, and
+`retryCount` describe failures without adding user-facing statuses. Image
+build/push retries default to three attempts with a fixed one-second backoff.

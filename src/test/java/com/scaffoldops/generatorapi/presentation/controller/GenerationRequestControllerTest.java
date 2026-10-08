@@ -171,7 +171,7 @@ class GenerationRequestControllerTest {
                         .content("{\"namespace\":\"scaffoldops-dev\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
-                        .value("Generation request cannot be deployed from its current lifecycle state"));
+                        .value("Deployment requires GENERATED with nonblank artifactRef and imageRef, an eligible deployment state, and a valid namespace and replica count"));
     }
 
     @Test
@@ -297,6 +297,39 @@ class GenerationRequestControllerTest {
                         .content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Malformed request body"));
+    }
+
+    @Test
+    void shouldSerializeNullableResponseFieldsAsNull() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.of(sample(id)));
+        var result = mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
+                .andExpect(status().isOk()).andReturn();
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        for (String field : List.of("message", "artifactRef", "imageRef", "deploymentNamespace", "failureStage")) {
+            org.assertj.core.api.Assertions.assertThat(json.has(field)).as(field).isTrue();
+            org.assertj.core.api.Assertions.assertThat(json.get(field).isNull()).as(field).isTrue();
+        }
+    }
+
+    @Test
+    void shouldSerializeNullableResponseFieldsAsStrings() throws Exception {
+        UUID id = UUID.randomUUID();
+        GenerationRequest base = sample(id);
+        GenerationRequest request = new GenerationRequest(base.id(), base.name(), base.template(),
+                base.database(), base.restApi(), base.security(), base.messaging(), base.deploymentTarget(),
+                base.generationStatus(), base.deploymentStatus(), base.specJson(),
+                "Generated", "s3://artifacts/billing.zip", "registry/billing:latest", "scaffoldops-dev",
+                base.createdAt(), base.updatedAt(), "IMAGE_PUSH", 2);
+        when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.of(request));
+        mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.failureStage").value("IMAGE_PUSH"))
+                .andExpect(jsonPath("$.retryCount").value(2))
+                .andExpect(jsonPath("$.message").value("Generated"))
+                .andExpect(jsonPath("$.artifactRef").value("s3://artifacts/billing.zip"))
+                .andExpect(jsonPath("$.imageRef").value("registry/billing:latest"))
+                .andExpect(jsonPath("$.deploymentNamespace").value("scaffoldops-dev"));
     }
 
     private GenerationRequest sample(UUID id) {

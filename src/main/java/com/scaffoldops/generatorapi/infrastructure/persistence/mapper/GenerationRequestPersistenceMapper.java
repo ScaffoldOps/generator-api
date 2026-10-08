@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class GenerationRequestPersistenceMapper {
 
     public GenerationRequestEntity toEntity(GenerationRequest generationRequest) {
-        return new GenerationRequestEntity(
+        GenerationRequestEntity entity = new GenerationRequestEntity(
                 generationRequest.id(),
                 generationRequest.name(),
                 generationRequest.template(),
@@ -27,6 +27,9 @@ public class GenerationRequestPersistenceMapper {
                 generationRequest.createdAt(),
                 generationRequest.updatedAt()
         );
+        entity.setFailureStage(generationRequest.failureStage());
+        entity.setRetryCount(generationRequest.retryCount());
+        return entity;
     }
 
     public GenerationRequest toDomain(GenerationRequestEntity entity) {
@@ -47,7 +50,9 @@ public class GenerationRequestPersistenceMapper {
                 entity.getImageRef(),
                 entity.getDeploymentNamespace(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getFailureStage(),
+                entity.getRetryCount()
         );
     }
 }

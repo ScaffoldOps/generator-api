@@ -70,6 +70,8 @@ public class GenerationRequestApiMapper {
                 .deploymentStatus(com.scaffoldops.generatorapi.openapi.model.DeploymentStatus.fromValue(
                         generationRequest.deploymentStatus().name()
                 ))
+                .failureStage(generationRequest.failureStage())
+                .retryCount(generationRequest.retryCount())
                 .message(generationRequest.message())
                 .artifactRef(generationRequest.artifactRef())
                 .imageRef(generationRequest.imageRef())
@@ -83,7 +85,9 @@ public class GenerationRequestApiMapper {
                 GenerationStatus.valueOf(request.getGenerationStatus().getValue()),
                 request.getMessage(),
                 request.getArtifactRef(),
-                request.getImageRef()
+                request.getImageRef(),
+                request.getFailureStage(),
+                request.getRetryCount()
         );
     }
 

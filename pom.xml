@@ -196,6 +196,7 @@
                                 <useTags>true</useTags>
                                 <skipDefaultInterface>true</skipDefaultInterface>
                                 <useSpringBoot3>true</useSpringBoot3>
+                                <openApiNullable>false</openApiNullable>
                             </configOptions>
                         </configuration>
                     </execution>
