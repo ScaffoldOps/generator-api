@@ -1,7 +1,7 @@
 package com.scaffoldops.generatorapi.domain.event;
 
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -15,7 +15,7 @@ public record GenerationRequestedEvent(
         boolean security,
         boolean messaging,
         DeploymentTarget deploymentTarget,
-        GenerationRequestStatus status,
+        GenerationStatus generationStatus,
         OffsetDateTime createdAt
 ) {
 }

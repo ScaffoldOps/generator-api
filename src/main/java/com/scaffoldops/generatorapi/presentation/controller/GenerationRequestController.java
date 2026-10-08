@@ -4,6 +4,8 @@ import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestU
 import com.scaffoldops.generatorapi.application.port.in.DeleteGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
+import com.scaffoldops.generatorapi.application.port.in.RequestDeploymentUseCase;
+import com.scaffoldops.generatorapi.application.port.in.RequestUndeploymentUseCase;
 import com.scaffoldops.generatorapi.openapi.api.GenerationRequestApi;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
@@ -23,6 +25,8 @@ public class GenerationRequestController implements GenerationRequestApi {
     private final DeleteGenerationRequestUseCase deleteGenerationRequestUseCase;
     private final GetGenerationRequestUseCase getGenerationRequestUseCase;
     private final ListGenerationRequestsUseCase listGenerationRequestsUseCase;
+    private final RequestDeploymentUseCase requestDeploymentUseCase;
+    private final RequestUndeploymentUseCase requestUndeploymentUseCase;
     private final GenerationRequestApiMapper generationRequestApiMapper;
 
     public GenerationRequestController(
@@ -30,12 +34,16 @@ public class GenerationRequestController implements GenerationRequestApi {
             DeleteGenerationRequestUseCase deleteGenerationRequestUseCase,
             GetGenerationRequestUseCase getGenerationRequestUseCase,
             ListGenerationRequestsUseCase listGenerationRequestsUseCase,
+            RequestDeploymentUseCase requestDeploymentUseCase,
+            RequestUndeploymentUseCase requestUndeploymentUseCase,
             GenerationRequestApiMapper generationRequestApiMapper
     ) {
         this.createGenerationRequestUseCase = createGenerationRequestUseCase;
         this.deleteGenerationRequestUseCase = deleteGenerationRequestUseCase;
         this.getGenerationRequestUseCase = getGenerationRequestUseCase;
         this.listGenerationRequestsUseCase = listGenerationRequestsUseCase;
+        this.requestDeploymentUseCase = requestDeploymentUseCase;
+        this.requestUndeploymentUseCase = requestUndeploymentUseCase;
         this.generationRequestApiMapper = generationRequestApiMapper;
     }
 
@@ -64,10 +72,37 @@ public class GenerationRequestController implements GenerationRequestApi {
     }
 
     @Override
+    public ResponseEntity<Void> deployGenerationRequest(UUID id) {
+        RequestDeploymentUseCase.Result result = requestDeploymentUseCase.requestDeployment(id);
+        return switch (result) {
+            case ACCEPTED -> ResponseEntity.accepted().build();
+            case NOT_FOUND -> throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found");
+            case INVALID_TRANSITION -> throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Generation request cannot be deployed from its current lifecycle state"
+            );
+        };
+    }
+
+    @Override
+    public ResponseEntity<Void> undeployGenerationRequest(UUID id) {
+        RequestUndeploymentUseCase.Result result = requestUndeploymentUseCase.requestUndeployment(id);
+        return switch (result) {
+            case ACCEPTED -> ResponseEntity.accepted().build();
+            case NOT_FOUND -> throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found");
+            case INVALID_TRANSITION -> throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Generation request cannot be undeployed from its current lifecycle state"
+            );
+        };
+    }
+
+    @Override
     public ResponseEntity<List<GenerationRequestResponse>> listGenerationRequests(
             String name,
             String template,
-            com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus status,
+            com.scaffoldops.generatorapi.openapi.model.GenerationStatus generationStatus,
+            com.scaffoldops.generatorapi.openapi.model.DeploymentStatus deploymentStatus,
             com.scaffoldops.generatorapi.openapi.model.DeploymentTarget deploymentTarget,
             Boolean database,
             Boolean restApi,
@@ -78,7 +113,8 @@ public class GenerationRequestController implements GenerationRequestApi {
                 listGenerationRequestsUseCase.getAll(generationRequestApiMapper.toFilters(
                                 name,
                                 template,
-                                status,
+                                generationStatus,
+                                deploymentStatus,
                                 deploymentTarget,
                                 database,
                                 restApi,

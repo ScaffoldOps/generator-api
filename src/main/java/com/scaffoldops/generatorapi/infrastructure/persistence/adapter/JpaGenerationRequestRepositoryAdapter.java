@@ -62,7 +62,8 @@ public class JpaGenerationRequestRepositoryAdapter implements GenerationRequestR
         return (root, query, criteriaBuilder) -> criteriaBuilder.and(
                 equalIfPresent(criteriaBuilder, root.get("name"), effectiveFilters.name()),
                 equalIfPresent(criteriaBuilder, root.get("template"), effectiveFilters.template()),
-                equalIfPresent(criteriaBuilder, root.get("status"), effectiveFilters.status()),
+                equalIfPresent(criteriaBuilder, root.get("generationStatus"), effectiveFilters.generationStatus()),
+                equalIfPresent(criteriaBuilder, root.get("deploymentStatus"), effectiveFilters.deploymentStatus()),
                 equalIfPresent(criteriaBuilder, root.get("deploymentTarget"), effectiveFilters.deploymentTarget()),
                 equalIfPresent(criteriaBuilder, root.get("database"), effectiveFilters.database()),
                 equalIfPresent(criteriaBuilder, root.get("restApi"), effectiveFilters.restApi()),

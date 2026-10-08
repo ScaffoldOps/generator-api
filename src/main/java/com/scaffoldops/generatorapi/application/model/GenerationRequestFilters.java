@@ -1,12 +1,14 @@
 package com.scaffoldops.generatorapi.application.model;
 
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 
 public record GenerationRequestFilters(
         String name,
         String template,
-        GenerationRequestStatus status,
+        GenerationStatus generationStatus,
+        DeploymentStatus deploymentStatus,
         DeploymentTarget deploymentTarget,
         Boolean database,
         Boolean restApi,
@@ -15,6 +17,6 @@ public record GenerationRequestFilters(
 ) {
 
     public static GenerationRequestFilters empty() {
-        return new GenerationRequestFilters(null, null, null, null, null, null, null, null);
+        return new GenerationRequestFilters(null, null, null, null, null, null, null, null, null);
     }
 }

@@ -2,7 +2,9 @@ package com.scaffoldops.generatorapi.infrastructure.messaging.kafka;
 
 import com.scaffoldops.generatorapi.application.port.out.GenerationRequestEventPublisher;
 import com.scaffoldops.generatorapi.domain.event.ArtifactCleanupRequestedEvent;
+import com.scaffoldops.generatorapi.domain.event.DeploymentRequestedEvent;
 import com.scaffoldops.generatorapi.domain.event.GenerationRequestedEvent;
+import com.scaffoldops.generatorapi.domain.event.UndeploymentRequestedEvent;
 import com.scaffoldops.generatorapi.infrastructure.config.KafkaTopicProperties;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,16 @@ public class KafkaGenerationRequestEventPublisher implements GenerationRequestEv
     @Override
     public void publishGenerationRequested(GenerationRequestedEvent event) {
         kafkaTemplate.send(kafkaTopicProperties.generationRequested(), event.requestId().toString(), event);
+    }
+
+    @Override
+    public void publishDeploymentRequested(DeploymentRequestedEvent event) {
+        kafkaTemplate.send(kafkaTopicProperties.deploymentRequested(), event.requestId().toString(), event);
+    }
+
+    @Override
+    public void publishUndeploymentRequested(UndeploymentRequestedEvent event) {
+        kafkaTemplate.send(kafkaTopicProperties.undeploymentRequested(), event.requestId().toString(), event);
     }
 
     @Override

@@ -4,11 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.UpdateDeploymentRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
+import com.scaffoldops.generatorapi.openapi.model.DeploymentStatusUpdateRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
 import com.scaffoldops.generatorapi.openapi.model.GenerationStatusUpdateRequest;
 import org.springframework.http.HttpStatus;
@@ -49,8 +52,11 @@ public class GenerationRequestApiMapper {
                 .deploymentTarget(com.scaffoldops.generatorapi.openapi.model.DeploymentTarget.fromValue(
                         generationRequest.deploymentTarget().name()
                 ))
-                .status(com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus.fromValue(
-                        generationRequest.status().name()
+                .generationStatus(com.scaffoldops.generatorapi.openapi.model.GenerationStatus.fromValue(
+                        generationRequest.generationStatus().name()
+                ))
+                .deploymentStatus(com.scaffoldops.generatorapi.openapi.model.DeploymentStatus.fromValue(
+                        generationRequest.deploymentStatus().name()
                 ))
                 .message(generationRequest.message())
                 .artifactRef(generationRequest.artifactRef())
@@ -61,9 +67,16 @@ public class GenerationRequestApiMapper {
 
     public UpdateGenerationRequestStatusUseCase.Command toCommand(GenerationStatusUpdateRequest request) {
         return new UpdateGenerationRequestStatusUseCase.Command(
-                GenerationRequestStatus.valueOf(request.getStatus().getValue()),
+                GenerationStatus.valueOf(request.getGenerationStatus().getValue()),
                 request.getMessage(),
-                request.getArtifactRef(),
+                request.getArtifactRef()
+        );
+    }
+
+    public UpdateDeploymentRequestStatusUseCase.Command toCommand(DeploymentStatusUpdateRequest request) {
+        return new UpdateDeploymentRequestStatusUseCase.Command(
+                DeploymentStatus.valueOf(request.getDeploymentStatus().getValue()),
+                request.getMessage(),
                 request.getImageRef()
         );
     }
@@ -71,7 +84,8 @@ public class GenerationRequestApiMapper {
     public GenerationRequestFilters toFilters(
             String name,
             String template,
-            com.scaffoldops.generatorapi.openapi.model.GenerationRequestStatus status,
+            com.scaffoldops.generatorapi.openapi.model.GenerationStatus generationStatus,
+            com.scaffoldops.generatorapi.openapi.model.DeploymentStatus deploymentStatus,
             com.scaffoldops.generatorapi.openapi.model.DeploymentTarget deploymentTarget,
             Boolean database,
             Boolean restApi,
@@ -81,7 +95,8 @@ public class GenerationRequestApiMapper {
         return new GenerationRequestFilters(
                 name,
                 template,
-                status == null ? null : GenerationRequestStatus.valueOf(status.getValue()),
+                generationStatus == null ? null : GenerationStatus.valueOf(generationStatus.getValue()),
+                deploymentStatus == null ? null : DeploymentStatus.valueOf(deploymentStatus.getValue()),
                 deploymentTarget == null ? null : DeploymentTarget.valueOf(deploymentTarget.getValue()),
                 database,
                 restApi,

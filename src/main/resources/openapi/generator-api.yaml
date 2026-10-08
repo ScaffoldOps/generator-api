@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ScaffoldOps Generator API
-  description: API for submitting and tracking scaffold generation requests.
+  description: API for submitting, tracking, deploying, and undeploying scaffold generation requests.
   version: "0.0.1-SNAPSHOT"
 servers:
   - url: /api/generator/v1
@@ -31,29 +31,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenerationRequestResponse'
         '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
         - GenerationRequest
@@ -69,11 +53,16 @@ paths:
           required: false
           schema:
             type: string
-        - name: status
+        - name: generationStatus
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/GenerationRequestStatus'
+            $ref: '#/components/schemas/GenerationStatus'
+        - name: deploymentStatus
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DeploymentStatus'
         - name: deploymentTarget
           in: query
           required: false
@@ -109,35 +98,18 @@ paths:
                 items:
                   $ref: '#/components/schemas/GenerationRequestResponse'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
   /generation-requests/{id}:
     get:
       tags:
         - GenerationRequest
       operationId: getGenerationRequestById
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/GenerationRequestId'
       responses:
         '200':
           description: OK
@@ -146,94 +118,87 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenerationRequestResponse'
         '400':
-          description: Invalid id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/InternalServerError'
     delete:
       tags:
         - GenerationRequest
       operationId: deleteGenerationRequestById
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/GenerationRequestId'
       responses:
         '204':
           description: No Content
         '400':
-          description: Invalid id
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /internal/generation-requests/{requestId}/status:
+          $ref: '#/components/responses/InternalServerError'
+  /generation-requests/{id}/deploy:
+    post:
+      tags:
+        - GenerationRequest
+      operationId: deployGenerationRequest
+      parameters:
+        - $ref: '#/components/parameters/GenerationRequestId'
+      responses:
+        '202':
+          description: Deployment requested
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /generation-requests/{id}/deployment:
+    delete:
+      tags:
+        - GenerationRequest
+      operationId: undeployGenerationRequest
+      parameters:
+        - $ref: '#/components/parameters/GenerationRequestId'
+      responses:
+        '202':
+          description: Undeployment requested
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /internal/generation-requests/{requestId}/generation-status:
     patch:
       tags:
         - InternalGenerationRequest
-      summary: Update generation request status
-      description: Internal callback used by generator-worker to report generation progress and results. Not part of the public client API.
-      operationId: updateGenerationRequestStatus
+      summary: Update generation lifecycle status
+      description: Internal callback used by generator-worker to report generation progress and results.
+      operationId: updateGenerationRequestGenerationStatus
       parameters:
-        - name: requestId
-          in: path
-          required: true
-          description: Generation request identifier.
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/InternalGenerationRequestId'
       requestBody:
         required: true
         content:
@@ -242,34 +207,113 @@ paths:
               $ref: '#/components/schemas/GenerationStatusUpdateRequest'
       responses:
         '204':
-          description: Generation request status updated
+          description: Generation status updated
         '400':
-          description: Invalid request identifier or status update
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Generation request not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /internal/generation-requests/{requestId}/deployment-status:
+    patch:
+      tags:
+        - InternalGenerationRequest
+      summary: Update deployment lifecycle status
+      description: Internal callback used by deployment-worker to report deployment progress and results.
+      operationId: updateGenerationRequestDeploymentStatus
+      parameters:
+        - $ref: '#/components/parameters/InternalGenerationRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentStatusUpdateRequest'
+      responses:
+        '204':
+          description: Deployment status updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
+  parameters:
+    GenerationRequestId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InternalGenerationRequestId:
+      name: requestId
+      in: path
+      required: true
+      description: Generation request identifier.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Invalid lifecycle state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     DeploymentTarget:
       type: string
       enum:
         - KUBERNETES
-    GenerationRequestStatus:
+    GenerationStatus:
       type: string
       enum:
         - RECEIVED
         - GENERATING
         - GENERATED
+        - GENERATION_FAILED
+    DeploymentStatus:
+      type: string
+      enum:
+        - NOT_DEPLOYED
+        - DEPLOYMENT_REQUESTED
         - DEPLOYING
         - DEPLOYED
-        - FAILED
+        - UNDEPLOYMENT_REQUESTED
+        - UNDEPLOYING
+        - DEPLOYMENT_FAILED
     CreateGenerationRequestRequest:
       type: object
       required:
@@ -296,24 +340,41 @@ components:
     GenerationStatusUpdateRequest:
       type: object
       required:
-        - status
+        - generationStatus
       properties:
-        status:
+        generationStatus:
           type: string
-          description: Current status reported by generator-worker.
+          description: Current generation status reported by generator-worker.
           enum:
             - GENERATING
             - GENERATED
-            - FAILED
+            - GENERATION_FAILED
         message:
           type: string
           description: Optional progress or failure detail.
         artifactRef:
           type: string
           description: Optional reference to the generated artifact.
+    DeploymentStatusUpdateRequest:
+      type: object
+      required:
+        - deploymentStatus
+      properties:
+        deploymentStatus:
+          type: string
+          description: Current deployment status reported by deployment-worker.
+          enum:
+            - DEPLOYING
+            - DEPLOYED
+            - UNDEPLOYING
+            - NOT_DEPLOYED
+            - DEPLOYMENT_FAILED
+        message:
+          type: string
+          description: Optional progress or failure detail.
         imageRef:
           type: string
-          description: Optional reference to the generated container image.
+          description: Optional reference to the deployed container image.
     GenerationRequestResponse:
       type: object
       required:
@@ -321,7 +382,8 @@ components:
         - name
         - template
         - deploymentTarget
-        - status
+        - generationStatus
+        - deploymentStatus
         - createdAt
         - updatedAt
       properties:
@@ -342,8 +404,10 @@ components:
           type: boolean
         deploymentTarget:
           $ref: '#/components/schemas/DeploymentTarget'
-        status:
-          $ref: '#/components/schemas/GenerationRequestStatus'
+        generationStatus:
+          $ref: '#/components/schemas/GenerationStatus'
+        deploymentStatus:
+          $ref: '#/components/schemas/DeploymentStatus'
         message:
           type: string
           nullable: true

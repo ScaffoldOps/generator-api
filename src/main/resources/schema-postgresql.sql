@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS generation_requests (
     security BOOLEAN NOT NULL,
     messaging BOOLEAN NOT NULL,
     deployment_target VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL,
+    generation_status VARCHAR(255) NOT NULL,
+    deployment_status VARCHAR(255) NOT NULL,
     spec_json TEXT NOT NULL,
     message TEXT,
     artifact_ref TEXT,
@@ -31,3 +32,12 @@ ALTER TABLE generation_requests
 
 ALTER TABLE generation_requests
     ADD COLUMN IF NOT EXISTS image_ref TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS generation_status VARCHAR(255) NOT NULL DEFAULT 'RECEIVED';
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS deployment_status VARCHAR(255) NOT NULL DEFAULT 'NOT_DEPLOYED';
+
+ALTER TABLE generation_requests
+    DROP COLUMN IF EXISTS status;

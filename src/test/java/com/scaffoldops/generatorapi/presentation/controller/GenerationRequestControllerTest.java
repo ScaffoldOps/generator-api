@@ -6,10 +6,13 @@ import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestU
 import com.scaffoldops.generatorapi.application.port.in.DeleteGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.GetGenerationRequestUseCase;
 import com.scaffoldops.generatorapi.application.port.in.ListGenerationRequestsUseCase;
+import com.scaffoldops.generatorapi.application.port.in.RequestDeploymentUseCase;
+import com.scaffoldops.generatorapi.application.port.in.RequestUndeploymentUseCase;
 import com.scaffoldops.generatorapi.presentation.config.SecurityConfiguration;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.presentation.error.GlobalExceptionHandler;
 import com.scaffoldops.generatorapi.presentation.mapper.GenerationRequestApiMapper;
 import org.junit.jupiter.api.Test;
@@ -68,6 +71,12 @@ class GenerationRequestControllerTest {
     @Autowired
     private ListGenerationRequestsUseCase listGenerationRequestsUseCase;
 
+    @Autowired
+    private RequestDeploymentUseCase requestDeploymentUseCase;
+
+    @Autowired
+    private RequestUndeploymentUseCase requestUndeploymentUseCase;
+
     @MockitoBean
     private JwtDecoder jwtDecoder;
 
@@ -82,7 +91,8 @@ class GenerationRequestControllerTest {
                         .content(objectMapper.writeValueAsString(new RequestBodyFixture())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.generationStatus").value("RECEIVED"))
+                .andExpect(jsonPath("$.deploymentStatus").value("NOT_DEPLOYED"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
     }
 
@@ -95,6 +105,8 @@ class GenerationRequestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("billing-service"))
                 .andExpect(jsonPath("$.deploymentTarget").value("KUBERNETES"))
+                .andExpect(jsonPath("$.generationStatus").value("RECEIVED"))
+                .andExpect(jsonPath("$.deploymentStatus").value("NOT_DEPLOYED"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
     }
 
@@ -128,6 +140,47 @@ class GenerationRequestControllerTest {
     }
 
     @Test
+    void shouldRequestDeployment() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(requestDeploymentUseCase.requestDeployment(id)).thenReturn(RequestDeploymentUseCase.Result.ACCEPTED);
+
+        mockMvc.perform(post("/generation-requests/{id}/deploy", id).with(jwt()))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void shouldReturnConflictWhenDeploymentStateIsInvalid() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(requestDeploymentUseCase.requestDeployment(id)).thenReturn(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+
+        mockMvc.perform(post("/generation-requests/{id}/deploy", id).with(jwt()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Generation request cannot be deployed from its current lifecycle state"));
+    }
+
+    @Test
+    void shouldRequestUndeployment() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(requestUndeploymentUseCase.requestUndeployment(id)).thenReturn(RequestUndeploymentUseCase.Result.ACCEPTED);
+
+        mockMvc.perform(delete("/generation-requests/{id}/deployment", id).with(jwt()))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void shouldReturnConflictWhenUndeploymentStateIsInvalid() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(requestUndeploymentUseCase.requestUndeployment(id))
+                .thenReturn(RequestUndeploymentUseCase.Result.INVALID_TRANSITION);
+
+        mockMvc.perform(delete("/generation-requests/{id}/deployment", id).with(jwt()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Generation request cannot be undeployed from its current lifecycle state"));
+    }
+
+    @Test
     void shouldListGenerationRequests() throws Exception {
         UUID id = UUID.randomUUID();
         when(listGenerationRequestsUseCase.getAll(GenerationRequestFilters.empty())).thenReturn(List.of(sample(id)));
@@ -143,7 +196,8 @@ class GenerationRequestControllerTest {
         GenerationRequestFilters filters = new GenerationRequestFilters(
                 "billing-service",
                 "spring-boot-hexagonal",
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 DeploymentTarget.KUBERNETES,
                 true,
                 true,
@@ -156,7 +210,8 @@ class GenerationRequestControllerTest {
                         .with(jwt())
                         .queryParam("name", "billing-service")
                         .queryParam("template", "spring-boot-hexagonal")
-                        .queryParam("status", "RECEIVED")
+                        .queryParam("generationStatus", "RECEIVED")
+                        .queryParam("deploymentStatus", "NOT_DEPLOYED")
                         .queryParam("deploymentTarget", "KUBERNETES")
                         .queryParam("database", "true")
                         .queryParam("restApi", "true")
@@ -170,12 +225,12 @@ class GenerationRequestControllerTest {
     }
 
     @Test
-    void shouldReturnBadRequestWhenStatusFilterIsInvalid() throws Exception {
+    void shouldReturnBadRequestWhenGenerationStatusFilterIsInvalid() throws Exception {
         mockMvc.perform(get("/generation-requests")
                         .with(jwt())
-                        .queryParam("status", "UNKNOWN"))
+                        .queryParam("generationStatus", "UNKNOWN"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid value for status"));
+                .andExpect(jsonPath("$.message").value("Invalid value for generationStatus"));
     }
 
     @Test
@@ -239,7 +294,8 @@ class GenerationRequestControllerTest {
                 true,
                 false,
                 DeploymentTarget.KUBERNETES,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 "{\"name\":\"billing-service\"}",
                 null,
                 null,
@@ -292,6 +348,16 @@ class GenerationRequestControllerTest {
         @Bean
         ListGenerationRequestsUseCase listGenerationRequestsUseCase() {
             return mock(ListGenerationRequestsUseCase.class);
+        }
+
+        @Bean
+        RequestDeploymentUseCase requestDeploymentUseCase() {
+            return mock(RequestDeploymentUseCase.class);
+        }
+
+        @Bean
+        RequestUndeploymentUseCase requestUndeploymentUseCase() {
+            return mock(RequestUndeploymentUseCase.class);
         }
 
         @Bean

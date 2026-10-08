@@ -1,9 +1,10 @@
 package com.scaffoldops.generatorapi.infrastructure.persistence.adapter;
 
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.infrastructure.persistence.mapper.GenerationRequestPersistenceMapper;
 import com.scaffoldops.generatorapi.infrastructure.persistence.repository.SpringDataGenerationRequestJpaRepository;
 import org.junit.jupiter.api.Test;
@@ -36,35 +37,40 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 "payments-service",
                 true,
                 true,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-08T10:15:30Z")
         );
         GenerationRequest olderMatch = persist(
                 "billing-service",
                 true,
                 true,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
         persist(
                 "analytics-service",
                 false,
                 true,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-09T10:15:30Z")
         );
         persist(
                 "invoice-service",
                 true,
                 true,
-                GenerationRequestStatus.GENERATING,
+                GenerationStatus.GENERATING,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-10T10:15:30Z")
         );
 
         List<GenerationRequest> results = repositoryAdapter.findAllByFilters(new GenerationRequestFilters(
                 null,
                 "spring-boot-hexagonal",
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 DeploymentTarget.KUBERNETES,
                 true,
                 true,
@@ -83,14 +89,16 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 "orders-service",
                 true,
                 false,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-06T10:15:30Z")
         );
         GenerationRequest newest = persist(
                 "payments-service",
                 true,
                 true,
-                GenerationRequestStatus.GENERATING,
+                GenerationStatus.GENERATING,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-08T10:15:30Z")
         );
 
@@ -107,7 +115,8 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 "payments-service",
                 true,
                 true,
-                GenerationRequestStatus.RECEIVED,
+                GenerationStatus.RECEIVED,
+                DeploymentStatus.NOT_DEPLOYED,
                 OffsetDateTime.parse("2026-03-08T10:15:30Z")
         );
 
@@ -125,7 +134,7 @@ class JpaGenerationRequestRepositoryAdapterTest {
     }
 
     @Test
-    void shouldPersistGenerationStatusMetadata() {
+    void shouldPersistBothLifecycleStatusesAndMetadata() {
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-03-08T10:15:30Z");
         GenerationRequest request = new GenerationRequest(
                 UUID.randomUUID(),
@@ -136,7 +145,8 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 false,
                 false,
                 DeploymentTarget.KUBERNETES,
-                GenerationRequestStatus.GENERATED,
+                GenerationStatus.GENERATED,
+                DeploymentStatus.DEPLOYED,
                 "{\"name\":\"catalog-service\"}",
                 "Generation completed",
                 "s3://artifacts/catalog.zip",
@@ -148,7 +158,8 @@ class JpaGenerationRequestRepositoryAdapterTest {
         GenerationRequest saved = repositoryAdapter.save(request);
         GenerationRequest reloaded = repositoryAdapter.findById(saved.id()).orElseThrow();
 
-        assertThat(reloaded.status()).isEqualTo(GenerationRequestStatus.GENERATED);
+        assertThat(reloaded.generationStatus()).isEqualTo(GenerationStatus.GENERATED);
+        assertThat(reloaded.deploymentStatus()).isEqualTo(DeploymentStatus.DEPLOYED);
         assertThat(reloaded.message()).isEqualTo("Generation completed");
         assertThat(reloaded.artifactRef()).isEqualTo("s3://artifacts/catalog.zip");
         assertThat(reloaded.imageRef()).isEqualTo("registry/catalog:latest");
@@ -158,7 +169,8 @@ class JpaGenerationRequestRepositoryAdapterTest {
             String name,
             boolean database,
             boolean security,
-            GenerationRequestStatus status,
+            GenerationStatus generationStatus,
+            DeploymentStatus deploymentStatus,
             OffsetDateTime createdAt
     ) {
         GenerationRequest generationRequest = new GenerationRequest(
@@ -170,7 +182,8 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 security,
                 false,
                 DeploymentTarget.KUBERNETES,
-                status,
+                generationStatus,
+                deploymentStatus,
                 "{\"name\":\"" + name + "\"}",
                 null,
                 null,

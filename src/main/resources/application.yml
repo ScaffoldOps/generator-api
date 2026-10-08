@@ -31,6 +31,8 @@ app:
   kafka:
     topics:
       generation-requested: ${GENERATION_REQUESTED_TOPIC:generation-requested}
+      deployment-requested: ${DEPLOYMENT_REQUESTED_TOPIC:deployment-requested}
+      undeployment-requested: ${UNDEPLOYMENT_REQUESTED_TOPIC:undeployment-requested}
       artifact-cleanup-requested: ${ARTIFACT_CLEANUP_REQUESTED_TOPIC:artifact-cleanup-requested}
 
 management:

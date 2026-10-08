@@ -1,8 +1,10 @@
 package com.scaffoldops.generatorapi.presentation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scaffoldops.generatorapi.application.port.in.UpdateDeploymentRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.presentation.config.SecurityConfiguration;
 import com.scaffoldops.generatorapi.presentation.error.GlobalExceptionHandler;
 import com.scaffoldops.generatorapi.presentation.mapper.GenerationRequestApiMapper;
@@ -45,34 +47,63 @@ class InternalGenerationRequestControllerTest {
     @Autowired
     private UpdateGenerationRequestStatusUseCase updateGenerationRequestStatusUseCase;
 
+    @Autowired
+    private UpdateDeploymentRequestStatusUseCase updateDeploymentRequestStatusUseCase;
+
     @MockitoBean
     private JwtDecoder jwtDecoder;
 
     @Test
-    void shouldUpdateGenerationRequestStatus() throws Exception {
+    void shouldUpdateGenerationRequestGenerationStatus() throws Exception {
         UUID requestId = UUID.randomUUID();
-        when(updateGenerationRequestStatusUseCase.updateStatus(eq(requestId), any()))
+        when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))
                 .thenReturn(UpdateGenerationRequestStatusUseCase.Result.UPDATED);
 
-        mockMvc.perform(patch("/internal/generation-requests/{requestId}/status", requestId)
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", requestId)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "status": "GENERATING",
+                                  "generationStatus": "GENERATING",
                                   "message": "Generation started",
-                                  "artifactRef": "s3://artifacts/billing.zip",
+                                  "artifactRef": "s3://artifacts/billing.zip"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(updateGenerationRequestStatusUseCase).updateGenerationStatus(
+                requestId,
+                new UpdateGenerationRequestStatusUseCase.Command(
+                        GenerationStatus.GENERATING,
+                        "Generation started",
+                        "s3://artifacts/billing.zip"
+                )
+        );
+    }
+
+    @Test
+    void shouldUpdateGenerationRequestDeploymentStatus() throws Exception {
+        UUID requestId = UUID.randomUUID();
+        when(updateDeploymentRequestStatusUseCase.updateDeploymentStatus(eq(requestId), any()))
+                .thenReturn(UpdateDeploymentRequestStatusUseCase.Result.UPDATED);
+
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/deployment-status", requestId)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "deploymentStatus": "DEPLOYING",
+                                  "message": "Deployment started",
                                   "imageRef": "registry/billing:latest"
                                 }
                                 """))
                 .andExpect(status().isNoContent());
 
-        verify(updateGenerationRequestStatusUseCase).updateStatus(
+        verify(updateDeploymentRequestStatusUseCase).updateDeploymentStatus(
                 requestId,
-                new UpdateGenerationRequestStatusUseCase.Command(
-                        GenerationRequestStatus.GENERATING,
-                        "Generation started",
-                        "s3://artifacts/billing.zip",
+                new UpdateDeploymentRequestStatusUseCase.Command(
+                        DeploymentStatus.DEPLOYING,
+                        "Deployment started",
                         "registry/billing:latest"
                 )
         );
@@ -81,47 +112,61 @@ class InternalGenerationRequestControllerTest {
     @Test
     void shouldReturnNotFoundWhenGenerationRequestDoesNotExist() throws Exception {
         UUID requestId = UUID.randomUUID();
-        when(updateGenerationRequestStatusUseCase.updateStatus(eq(requestId), any()))
+        when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))
                 .thenReturn(UpdateGenerationRequestStatusUseCase.Result.NOT_FOUND);
 
-        mockMvc.perform(patch("/internal/generation-requests/{requestId}/status", requestId)
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", requestId)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"GENERATING\"}"))
+                        .content("{\"generationStatus\":\"GENERATING\"}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Generation request not found"));
     }
 
     @Test
-    void shouldReturnBadRequestWhenTransitionIsInvalid() throws Exception {
+    void shouldReturnConflictWhenGenerationTransitionIsInvalid() throws Exception {
         UUID requestId = UUID.randomUUID();
-        when(updateGenerationRequestStatusUseCase.updateStatus(eq(requestId), any()))
+        when(updateGenerationRequestStatusUseCase.updateGenerationStatus(eq(requestId), any()))
                 .thenReturn(UpdateGenerationRequestStatusUseCase.Result.INVALID_TRANSITION);
 
-        mockMvc.perform(patch("/internal/generation-requests/{requestId}/status", requestId)
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", requestId)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"FAILED\"}"))
-                .andExpect(status().isBadRequest())
+                        .content("{\"generationStatus\":\"GENERATION_FAILED\"}"))
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Invalid generation request status transition"));
     }
 
     @Test
-    void shouldReturnBadRequestWhenStatusIsUnsupported() throws Exception {
-        mockMvc.perform(patch("/internal/generation-requests/{requestId}/status", UUID.randomUUID())
+    void shouldReturnConflictWhenDeploymentTransitionIsInvalid() throws Exception {
+        UUID requestId = UUID.randomUUID();
+        when(updateDeploymentRequestStatusUseCase.updateDeploymentStatus(eq(requestId), any()))
+                .thenReturn(UpdateDeploymentRequestStatusUseCase.Result.INVALID_TRANSITION);
+
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/deployment-status", requestId)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"DEPLOYED\"}"))
+                        .content("{\"deploymentStatus\":\"DEPLOYED\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Invalid deployment request status transition"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenGenerationStatusIsUnsupported() throws Exception {
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", UUID.randomUUID())
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"generationStatus\":\"DEPLOYED\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Malformed request body"));
     }
 
     @Test
     void shouldReturnBadRequestWhenRequestIdIsInvalid() throws Exception {
-        mockMvc.perform(patch("/internal/generation-requests/{requestId}/status", "not-a-uuid")
+        mockMvc.perform(patch("/internal/generation-requests/{requestId}/generation-status", "not-a-uuid")
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"GENERATING\"}"))
+                        .content("{\"generationStatus\":\"GENERATING\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Invalid value for requestId"));
     }
@@ -132,6 +177,11 @@ class InternalGenerationRequestControllerTest {
         @Bean
         UpdateGenerationRequestStatusUseCase updateGenerationRequestStatusUseCase() {
             return mock(UpdateGenerationRequestStatusUseCase.class);
+        }
+
+        @Bean
+        UpdateDeploymentRequestStatusUseCase updateDeploymentRequestStatusUseCase() {
+            return mock(UpdateDeploymentRequestStatusUseCase.class);
         }
 
         @Bean

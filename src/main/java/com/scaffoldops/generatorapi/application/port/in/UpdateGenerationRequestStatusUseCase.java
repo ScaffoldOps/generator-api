@@ -1,18 +1,17 @@
 package com.scaffoldops.generatorapi.application.port.in;
 
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 
 import java.util.UUID;
 
 public interface UpdateGenerationRequestStatusUseCase {
 
-    Result updateStatus(UUID requestId, Command command);
+    Result updateGenerationStatus(UUID requestId, Command command);
 
     record Command(
-            GenerationRequestStatus status,
+            GenerationStatus generationStatus,
             String message,
-            String artifactRef,
-            String imageRef
+            String artifactRef
     ) {
     }
 

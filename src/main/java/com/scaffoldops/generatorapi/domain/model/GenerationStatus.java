@@ -1,10 +1,8 @@
 package com.scaffoldops.generatorapi.domain.model;
 
-public enum GenerationRequestStatus {
+public enum GenerationStatus {
     RECEIVED,
     GENERATING,
     GENERATED,
-    DEPLOYING,
-    DEPLOYED,
-    FAILED
+    GENERATION_FAILED
 }

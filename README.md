@@ -1,15 +1,22 @@
 # Generator API
 
 ## Purpose
-`generator-api` is the ScaffoldOps microservice responsible for receiving and storing scaffold generation requests.
+`generator-api` is the ScaffoldOps microservice responsible for receiving scaffold generation requests and orchestrating the independent generation and deployment lifecycles.
+
+The previous TFG MVP generated services only: `generator-api` stored requests, published `generation-requested`, and `generator-worker` produced artifacts on a PVC. The TFM evolution introduces deployment as an explicit user action. Generation no longer implies deployment.
 
 ## What This Service Does
 - Accepts generation requests over REST
 - Validates request payloads
 - Persists requests in PostgreSQL
+- Stores `generationStatus` and `deploymentStatus` as independent lifecycle fields
 - Publishes a `generation-requested` Kafka event after a request is stored
+- Accepts explicit deployment requests through `POST /generation-requests/{id}/deploy`
+- Accepts explicit undeployment requests through `DELETE /generation-requests/{id}/deployment`
+- Publishes `deployment-requested` and `undeployment-requested` Kafka events for those user actions
 - Publishes an `artifact-cleanup-requested` Kafka event after a request is deleted
 - Accepts internal generation lifecycle callbacks from `generator-worker`
+- Accepts internal deployment lifecycle callbacks from the future `deployment-worker`
 - Secures API endpoints with JWT bearer authentication
 - Exposes create, delete, get-by-id, and list endpoints for generation requests
 
@@ -17,7 +24,24 @@
 - Does not execute generation jobs
 - Does not deploy generated services
 - Does not run `deployment-worker`
+- Does not build container images automatically
 - Does not mount or access the `generator-worker` PVC directly
+
+## Lifecycle Model
+Generation states:
+`RECEIVED`, `GENERATING`, `GENERATED`, `GENERATION_FAILED`.
+
+Deployment states:
+`NOT_DEPLOYED`, `DEPLOYMENT_REQUESTED`, `DEPLOYING`, `DEPLOYED`, `UNDEPLOYMENT_REQUESTED`, `UNDEPLOYING`, `DEPLOYMENT_FAILED`.
+
+Creating a generation request always sets:
+
+```text
+generationStatus = RECEIVED
+deploymentStatus = NOT_DEPLOYED
+```
+
+Deployment can be requested only after generation reaches `GENERATED`. Invalid or duplicate deployment and undeployment requests return `409 Conflict`.
 
 ## Architecture
 Hexagonal (ports and adapters):
@@ -130,6 +154,18 @@ must not access the worker PVC directly. Cleanup is eventually consistent, not
 transactional with the database delete; if `generator-worker` is down, cleanup
 waits until Kafka is consumed.
 
+In the TFM deployment flow, `generator-api` is prepared to publish:
+
+```text
+deployment-requested
+undeployment-requested
+```
+
+These events contain request identity, service name, deployment target, an
+`artifactRef` when available, and the request timestamp. They do not carry
+artifact contents. Actual image building and Kubernetes deployment remain
+outside this `generator-api` change.
+
 ## Runtime Endpoints
 - API base path: `/api/generator/v1`
 - Example API endpoint: `/api/generator/v1/generation-requests`
@@ -142,7 +178,9 @@ waits until Kafka is consumed.
 All generation request endpoints require a bearer JWT. Actuator, Swagger UI,
 and OpenAPI JSON endpoints are public. The Kafka topic used for request
 publication defaults to `generation-requested` and can be overridden with
-`GENERATION_REQUESTED_TOPIC`. The artifact cleanup topic defaults to
+`GENERATION_REQUESTED_TOPIC`. The deployment topics default to
+`deployment-requested` and `undeployment-requested`, and can be overridden with
+`DEPLOYMENT_REQUESTED_TOPIC` and `UNDEPLOYMENT_REQUESTED_TOPIC`. The artifact cleanup topic defaults to
 `artifact-cleanup-requested` and can be overridden with
 `ARTIFACT_CLEANUP_REQUESTED_TOPIC`.
 

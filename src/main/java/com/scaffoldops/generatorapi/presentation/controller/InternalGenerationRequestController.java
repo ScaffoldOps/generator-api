@@ -1,7 +1,9 @@
 package com.scaffoldops.generatorapi.presentation.controller;
 
+import com.scaffoldops.generatorapi.application.port.in.UpdateDeploymentRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.openapi.api.InternalGenerationRequestApi;
+import com.scaffoldops.generatorapi.openapi.model.DeploymentStatusUpdateRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationStatusUpdateRequest;
 import com.scaffoldops.generatorapi.presentation.mapper.GenerationRequestApiMapper;
 import org.springframework.http.HttpStatus;
@@ -15,22 +17,25 @@ import java.util.UUID;
 public class InternalGenerationRequestController implements InternalGenerationRequestApi {
 
     private final UpdateGenerationRequestStatusUseCase updateGenerationRequestStatusUseCase;
+    private final UpdateDeploymentRequestStatusUseCase updateDeploymentRequestStatusUseCase;
     private final GenerationRequestApiMapper generationRequestApiMapper;
 
     public InternalGenerationRequestController(
             UpdateGenerationRequestStatusUseCase updateGenerationRequestStatusUseCase,
+            UpdateDeploymentRequestStatusUseCase updateDeploymentRequestStatusUseCase,
             GenerationRequestApiMapper generationRequestApiMapper
     ) {
         this.updateGenerationRequestStatusUseCase = updateGenerationRequestStatusUseCase;
+        this.updateDeploymentRequestStatusUseCase = updateDeploymentRequestStatusUseCase;
         this.generationRequestApiMapper = generationRequestApiMapper;
     }
 
     @Override
-    public ResponseEntity<Void> updateGenerationRequestStatus(
+    public ResponseEntity<Void> updateGenerationRequestGenerationStatus(
             UUID requestId,
             GenerationStatusUpdateRequest request
     ) {
-        UpdateGenerationRequestStatusUseCase.Result result = updateGenerationRequestStatusUseCase.updateStatus(
+        UpdateGenerationRequestStatusUseCase.Result result = updateGenerationRequestStatusUseCase.updateGenerationStatus(
                 requestId,
                 generationRequestApiMapper.toCommand(request)
         );
@@ -42,8 +47,31 @@ public class InternalGenerationRequestController implements InternalGenerationRe
                     "Generation request not found"
             );
             case INVALID_TRANSITION -> throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+                    HttpStatus.CONFLICT,
                     "Invalid generation request status transition"
+            );
+        };
+    }
+
+    @Override
+    public ResponseEntity<Void> updateGenerationRequestDeploymentStatus(
+            UUID requestId,
+            DeploymentStatusUpdateRequest request
+    ) {
+        UpdateDeploymentRequestStatusUseCase.Result result = updateDeploymentRequestStatusUseCase.updateDeploymentStatus(
+                requestId,
+                generationRequestApiMapper.toCommand(request)
+        );
+
+        return switch (result) {
+            case UPDATED -> ResponseEntity.noContent().build();
+            case NOT_FOUND -> throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Generation request not found"
+            );
+            case INVALID_TRANSITION -> throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Invalid deployment request status transition"
             );
         };
     }

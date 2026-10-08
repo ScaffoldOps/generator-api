@@ -1,7 +1,8 @@
 package com.scaffoldops.generatorapi.infrastructure.persistence.entity;
 
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -43,7 +44,11 @@ public class GenerationRequestEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private GenerationRequestStatus status;
+    private GenerationStatus generationStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DeploymentStatus deploymentStatus;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String specJson;
@@ -76,7 +81,8 @@ public class GenerationRequestEntity {
             boolean security,
             boolean messaging,
             DeploymentTarget deploymentTarget,
-            GenerationRequestStatus status,
+            GenerationStatus generationStatus,
+            DeploymentStatus deploymentStatus,
             String specJson,
             String message,
             String artifactRef,
@@ -92,7 +98,8 @@ public class GenerationRequestEntity {
         this.security = security;
         this.messaging = messaging;
         this.deploymentTarget = deploymentTarget;
-        this.status = status;
+        this.generationStatus = generationStatus;
+        this.deploymentStatus = deploymentStatus;
         this.specJson = specJson;
         this.message = message;
         this.artifactRef = artifactRef;
@@ -133,8 +140,12 @@ public class GenerationRequestEntity {
         return deploymentTarget;
     }
 
-    public GenerationRequestStatus getStatus() {
-        return status;
+    public GenerationStatus getGenerationStatus() {
+        return generationStatus;
+    }
+
+    public DeploymentStatus getDeploymentStatus() {
+        return deploymentStatus;
     }
 
     public String getSpecJson() {
