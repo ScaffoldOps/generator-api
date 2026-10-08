@@ -14,6 +14,10 @@ import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.DeployGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.DeploymentStatusUpdateRequest;
+import com.scaffoldops.generatorapi.openapi.model.GenerationRequestFeaturesResponse;
+import com.scaffoldops.generatorapi.openapi.model.GenerationRequestGenerationResponse;
+import com.scaffoldops.generatorapi.openapi.model.GenerationRequestDeploymentResponse;
+import com.scaffoldops.generatorapi.openapi.model.GenerationRequestTimestampsResponse;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
 import com.scaffoldops.generatorapi.openapi.model.GenerationStatusUpdateRequest;
 import org.springframework.http.HttpStatus;
@@ -57,27 +61,29 @@ public class GenerationRequestApiMapper {
                 .id(generationRequest.id())
                 .name(generationRequest.name())
                 .template(generationRequest.template())
-                .database(generationRequest.database())
-                .restApi(generationRequest.restApi())
-                .security(generationRequest.security())
-                .messaging(generationRequest.messaging())
                 .deploymentTarget(com.scaffoldops.generatorapi.openapi.model.DeploymentTarget.fromValue(
                         generationRequest.deploymentTarget().name()
                 ))
-                .generationStatus(com.scaffoldops.generatorapi.openapi.model.GenerationStatus.fromValue(
-                        generationRequest.generationStatus().name()
-                ))
-                .deploymentStatus(com.scaffoldops.generatorapi.openapi.model.DeploymentStatus.fromValue(
-                        generationRequest.deploymentStatus().name()
-                ))
-                .failureStage(generationRequest.failureStage())
-                .retryCount(generationRequest.retryCount())
-                .message(generationRequest.message())
-                .artifactRef(generationRequest.artifactRef())
-                .imageRef(generationRequest.imageRef())
-                .deploymentNamespace(generationRequest.deploymentNamespace())
-                .createdAt(generationRequest.createdAt())
-                .updatedAt(generationRequest.updatedAt());
+                .features(new GenerationRequestFeaturesResponse()
+                        .database(generationRequest.database())
+                        .restApi(generationRequest.restApi())
+                        .security(generationRequest.security())
+                        .messaging(generationRequest.messaging()))
+                .generation(new GenerationRequestGenerationResponse()
+                        .status(com.scaffoldops.generatorapi.openapi.model.GenerationStatus.fromValue(
+                                generationRequest.generationStatus().name()))
+                        .message(generationRequest.message())
+                        .artifactRef(generationRequest.artifactRef())
+                        .imageRef(generationRequest.imageRef())
+                        .failureStage(generationRequest.failureStage())
+                        .retryCount(generationRequest.retryCount()))
+                .deployment(new GenerationRequestDeploymentResponse()
+                        .status(com.scaffoldops.generatorapi.openapi.model.DeploymentStatus.fromValue(
+                                generationRequest.deploymentStatus().name()))
+                        .namespace(generationRequest.deploymentNamespace()))
+                .timestamps(new GenerationRequestTimestampsResponse()
+                        .createdAt(generationRequest.createdAt())
+                        .updatedAt(generationRequest.updatedAt()));
     }
 
     public UpdateGenerationRequestStatusUseCase.Command toCommand(GenerationStatusUpdateRequest request) {

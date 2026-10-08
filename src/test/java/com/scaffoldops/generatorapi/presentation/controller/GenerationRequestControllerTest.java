@@ -91,9 +91,16 @@ class GenerationRequestControllerTest {
                         .content(objectMapper.writeValueAsString(new RequestBodyFixture())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.generationStatus").value("RECEIVED"))
-                .andExpect(jsonPath("$.deploymentStatus").value("NOT_DEPLOYED"))
-                .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
+                .andExpect(jsonPath("$.generation.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.deployment.status").value("NOT_DEPLOYED"))
+                .andExpect(jsonPath("$.timestamps.updatedAt").value("2026-03-07T10:15:30Z"))
+                .andExpect(jsonPath("$.timestamps.createdAt").value("2026-03-07T10:15:30Z"))
+                .andExpect(jsonPath("$.features.database").value(true))
+                .andExpect(jsonPath("$.features.restApi").value(true))
+                .andExpect(jsonPath("$.features.security").value(true))
+                .andExpect(jsonPath("$.features.messaging").value(false))
+                .andExpect(jsonPath("$.generation.retryCount").value(0))
+                .andExpect(jsonPath("$.*", org.hamcrest.Matchers.hasSize(8)));
     }
 
     @Test
@@ -105,9 +112,16 @@ class GenerationRequestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("billing-service"))
                 .andExpect(jsonPath("$.deploymentTarget").value("KUBERNETES"))
-                .andExpect(jsonPath("$.generationStatus").value("RECEIVED"))
-                .andExpect(jsonPath("$.deploymentStatus").value("NOT_DEPLOYED"))
-                .andExpect(jsonPath("$.updatedAt").value("2026-03-07T10:15:30Z"));
+                .andExpect(jsonPath("$.generation.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.deployment.status").value("NOT_DEPLOYED"))
+                .andExpect(jsonPath("$.timestamps.updatedAt").value("2026-03-07T10:15:30Z"))
+                .andExpect(jsonPath("$.timestamps.createdAt").value("2026-03-07T10:15:30Z"))
+                .andExpect(jsonPath("$.features.database").value(true))
+                .andExpect(jsonPath("$.features.restApi").value(true))
+                .andExpect(jsonPath("$.features.security").value(true))
+                .andExpect(jsonPath("$.features.messaging").value(false))
+                .andExpect(jsonPath("$.generation.retryCount").value(0))
+                .andExpect(jsonPath("$.*", org.hamcrest.Matchers.hasSize(8)));
     }
 
     @Test
@@ -202,7 +216,11 @@ class GenerationRequestControllerTest {
 
         mockMvc.perform(get("/generation-requests").with(jwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(id.toString()));
+                .andExpect(jsonPath("$[0].id").value(id.toString()))
+                .andExpect(jsonPath("$[0].features.database").value(true))
+                .andExpect(jsonPath("$[0].generation.status").value("RECEIVED"))
+                .andExpect(jsonPath("$[0].deployment.status").value("NOT_DEPLOYED"))
+                .andExpect(jsonPath("$[0].timestamps.createdAt").value("2026-03-07T10:15:30Z"));
     }
 
     @Test
@@ -306,9 +324,9 @@ class GenerationRequestControllerTest {
         var result = mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isOk()).andReturn();
         var json = objectMapper.readTree(result.getResponse().getContentAsString());
-        for (String field : List.of("message", "artifactRef", "imageRef", "deploymentNamespace", "failureStage")) {
-            org.assertj.core.api.Assertions.assertThat(json.has(field)).as(field).isTrue();
-            org.assertj.core.api.Assertions.assertThat(json.get(field).isNull()).as(field).isTrue();
+        for (String field : List.of("/generation/message", "/generation/artifactRef", "/generation/imageRef", "/deployment/namespace", "/generation/failureStage")) {
+            org.assertj.core.api.Assertions.assertThat(!json.at(field).isMissingNode()).as(field).isTrue();
+            org.assertj.core.api.Assertions.assertThat(json.at(field).isNull()).as(field).isTrue();
         }
     }
 
@@ -324,12 +342,12 @@ class GenerationRequestControllerTest {
         when(getGenerationRequestUseCase.getById(id)).thenReturn(Optional.of(request));
         mockMvc.perform(get("/generation-requests/{id}", id).with(jwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.failureStage").value("IMAGE_PUSH"))
-                .andExpect(jsonPath("$.retryCount").value(2))
-                .andExpect(jsonPath("$.message").value("Generated"))
-                .andExpect(jsonPath("$.artifactRef").value("s3://artifacts/billing.zip"))
-                .andExpect(jsonPath("$.imageRef").value("registry/billing:latest"))
-                .andExpect(jsonPath("$.deploymentNamespace").value("scaffoldops-dev"));
+                .andExpect(jsonPath("$.generation.failureStage").value("IMAGE_PUSH"))
+                .andExpect(jsonPath("$.generation.retryCount").value(2))
+                .andExpect(jsonPath("$.generation.message").value("Generated"))
+                .andExpect(jsonPath("$.generation.artifactRef").value("s3://artifacts/billing.zip"))
+                .andExpect(jsonPath("$.generation.imageRef").value("registry/billing:latest"))
+                .andExpect(jsonPath("$.deployment.namespace").value("scaffoldops-dev"));
     }
 
     private GenerationRequest sample(UUID id) {

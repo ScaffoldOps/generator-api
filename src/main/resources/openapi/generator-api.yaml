@@ -412,25 +412,8 @@ components:
           description: Optional reference to the deployed container image.
     GenerationRequestResponse:
       type: object
-      required:
-        - id
-        - name
-        - template
-        - deploymentTarget
-        - generationStatus
-        - deploymentStatus
-        - createdAt
-        - updatedAt
+      required: [id, name, template, deploymentTarget, features, generation, deployment, timestamps]
       properties:
-        failureStage:
-          type: string
-          nullable: true
-          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
-          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
-        retryCount:
-          type: integer
-          minimum: 0
-          description: Number of additional image build/push attempts performed.
         id:
           type: string
           format: uuid
@@ -438,6 +421,43 @@ components:
           type: string
         template:
           type: string
+        deploymentTarget:
+          $ref: '#/components/schemas/DeploymentTarget'
+        features:
+          $ref: '#/components/schemas/GenerationRequestFeaturesResponse'
+        generation:
+          $ref: '#/components/schemas/GenerationRequestGenerationResponse'
+        deployment:
+          $ref: '#/components/schemas/GenerationRequestDeploymentResponse'
+        timestamps:
+          $ref: '#/components/schemas/GenerationRequestTimestampsResponse'
+      example:
+        id: 'a942f061-9cd4-4c36-b3b4-3f4902bca977'
+        name: billing-service
+        template: spring-boot-hexagonal
+        deploymentTarget: KUBERNETES
+        features:
+          database: false
+          restApi: true
+          security: false
+          messaging: false
+        generation:
+          status: GENERATED
+          message: Generation completed successfully
+          artifactRef: s3://artifacts/billing.zip
+          imageRef: docker.io/scaffoldops/billing:latest
+          failureStage: null
+          retryCount: 0
+        deployment:
+          status: NOT_DEPLOYED
+          namespace: null
+        timestamps:
+          createdAt: '2026-10-08T14:23:29.507533Z'
+          updatedAt: '2026-10-08T14:24:16.255323Z'
+    GenerationRequestFeaturesResponse:
+      type: object
+      required: [database, restApi, security, messaging]
+      properties:
         database:
           type: boolean
         restApi:
@@ -446,12 +466,13 @@ components:
           type: boolean
         messaging:
           type: boolean
-        deploymentTarget:
-          $ref: '#/components/schemas/DeploymentTarget'
-        generationStatus:
+    GenerationRequestGenerationResponse:
+      type: object
+      description: Generation lifecycle and results. GENERATED requires both nonblank artifactRef and imageRef.
+      required: [status, message, artifactRef, imageRef, failureStage, retryCount]
+      properties:
+        status:
           $ref: '#/components/schemas/GenerationStatus'
-        deploymentStatus:
-          $ref: '#/components/schemas/DeploymentStatus'
         message:
           type: string
           nullable: true
@@ -461,9 +482,28 @@ components:
         imageRef:
           type: string
           nullable: true
-        deploymentNamespace:
+        failureStage:
           type: string
           nullable: true
+          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
+          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Number of additional image build/push attempts performed.
+    GenerationRequestDeploymentResponse:
+      type: object
+      required: [status, namespace]
+      properties:
+        status:
+          $ref: '#/components/schemas/DeploymentStatus'
+        namespace:
+          type: string
+          nullable: true
+    GenerationRequestTimestampsResponse:
+      type: object
+      required: [createdAt, updatedAt]
+      properties:
         createdAt:
           type: string
           format: date-time
