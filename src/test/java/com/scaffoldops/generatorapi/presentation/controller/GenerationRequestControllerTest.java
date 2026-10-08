@@ -160,7 +160,7 @@ class GenerationRequestControllerTest {
                 new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", 2)
         )).thenReturn(RequestDeploymentUseCase.Result.ACCEPTED);
 
-        mockMvc.perform(post("/generation-requests/{id}/deploy", id)
+        mockMvc.perform(post("/generation-requests/{id}/deployment", id)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -172,17 +172,31 @@ class GenerationRequestControllerTest {
                 .andExpect(status().isAccepted());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "{\"namespace\":\"Bad_Name\",\"replicas\":1}",
+            "{\"namespace\":\"generated-dev\",\"replicas\":0}",
+            "{\"namespace\":\"generated-dev\",\"replicas\":21}",
+            "{\"namespace\":\"generated-dev\"}"})
+    void rejectsInvalidDeploymentBody(String body) throws Exception {
+        org.mockito.Mockito.clearInvocations(requestDeploymentUseCase);
+        mockMvc.perform(post("/generation-requests/{id}/deployment", UUID.randomUUID())
+                        .with(jwt()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(requestDeploymentUseCase);
+    }
+
     @Test
     void shouldReturnConflictWhenDeploymentStateIsInvalid() throws Exception {
         UUID id = UUID.randomUUID();
         when(requestDeploymentUseCase.requestDeployment(
-                new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", null)
+                new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", 1)
         )).thenReturn(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
 
-        mockMvc.perform(post("/generation-requests/{id}/deploy", id)
+        mockMvc.perform(post("/generation-requests/{id}/deployment", id)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"namespace\":\"scaffoldops-dev\"}"))
+                        .content("{\"namespace\":\"scaffoldops-dev\",\"replicas\":1}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("Deployment requires GENERATED with nonblank artifactRef and imageRef, an eligible deployment state, and a valid namespace and replica count"));

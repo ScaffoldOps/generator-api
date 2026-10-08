@@ -30,16 +30,36 @@ public class KafkaGenerationRequestEventPublisher implements GenerationRequestEv
 
     @Override
     public void publishDeploymentRequested(DeploymentRequestedEvent event) {
-        kafkaTemplate.send(kafkaTopicProperties.deploymentRequested(), event.requestId().toString(), event);
+        publishAcknowledged(kafkaTopicProperties.deploymentRequested(), event.requestId().toString(), event);
     }
 
     @Override
     public void publishUndeploymentRequested(UndeploymentRequestedEvent event) {
-        kafkaTemplate.send(kafkaTopicProperties.undeploymentRequested(), event.requestId().toString(), event);
+        publishAcknowledged(kafkaTopicProperties.undeploymentRequested(), event.requestId().toString(), event);
+    }
+
+    private void publishAcknowledged(String topic, String key, Object event) {
+        try {
+            kafkaTemplate.send(topic, key, event).get(30, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Deployment publication interrupted", ex);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException ex) {
+            throw new IllegalStateException("Deployment publication was not acknowledged", ex);
+        }
     }
 
     @Override
     public void publishArtifactCleanupRequested(ArtifactCleanupRequestedEvent event) {
-        kafkaTemplate.send(kafkaTopicProperties.artifactCleanupRequested(), event.requestId().toString(), event);
+        try {
+            // Broker acknowledgement precedes the DB commit; failure rolls back the deletion.
+            kafkaTemplate.send(kafkaTopicProperties.artifactCleanupRequested(), event.requestId().toString(), event)
+                    .get(30, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("cleanup publication interrupted", exception);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException exception) {
+            throw new IllegalStateException("cleanup publication was not acknowledged", exception);
+        }
     }
 }

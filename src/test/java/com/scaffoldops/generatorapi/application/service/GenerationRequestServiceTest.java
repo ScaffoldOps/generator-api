@@ -112,7 +112,7 @@ class GenerationRequestServiceTest {
         verify(generationRequestRepository).save(requestCaptor.capture());
         assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.ACCEPTED);
         assertThat(requestCaptor.getValue().generationStatus()).isEqualTo(GenerationStatus.GENERATED);
-        assertThat(requestCaptor.getValue().deploymentStatus()).isEqualTo(DeploymentStatus.DEPLOYMENT_REQUESTED);
+        assertThat(requestCaptor.getValue().deploymentStatus()).isEqualTo(DeploymentStatus.DEPLOYING);
         assertThat(requestCaptor.getValue().deploymentNamespace()).isEqualTo("scaffoldops-dev");
 
         ArgumentCaptor<DeploymentRequestedEvent> eventCaptor = ArgumentCaptor.forClass(DeploymentRequestedEvent.class);
@@ -204,8 +204,8 @@ class GenerationRequestServiceTest {
     }
 
     @Test
-    void shouldRequestUndeploymentOnlyFromDeployed() {
-        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.DEPLOYED);
+    void shouldRequestUndeploymentFromDeployed() {
+        GenerationRequest current = withNamespace(withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.DEPLOYED));
         when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
         when(generationRequestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -214,7 +214,7 @@ class GenerationRequestServiceTest {
         ArgumentCaptor<GenerationRequest> requestCaptor = ArgumentCaptor.forClass(GenerationRequest.class);
         verify(generationRequestRepository).save(requestCaptor.capture());
         assertThat(result).isEqualTo(RequestUndeploymentUseCase.Result.ACCEPTED);
-        assertThat(requestCaptor.getValue().deploymentStatus()).isEqualTo(DeploymentStatus.UNDEPLOYMENT_REQUESTED);
+        assertThat(requestCaptor.getValue().deploymentStatus()).isEqualTo(DeploymentStatus.UNDEPLOYING);
 
         ArgumentCaptor<UndeploymentRequestedEvent> eventCaptor = ArgumentCaptor.forClass(UndeploymentRequestedEvent.class);
         verify(generationRequestEventPublisher).publishUndeploymentRequested(eventCaptor.capture());
@@ -231,8 +231,7 @@ class GenerationRequestServiceTest {
             "DEPLOYMENT_REQUESTED",
             "DEPLOYING",
             "UNDEPLOYMENT_REQUESTED",
-            "UNDEPLOYING",
-            "DEPLOYMENT_FAILED"
+            "UNDEPLOYING"
     })
     void shouldRejectDuplicateOrInvalidUndeployRequests(DeploymentStatus deploymentStatus) {
         GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, deploymentStatus);
@@ -283,6 +282,9 @@ class GenerationRequestServiceTest {
         verify(generationRequestEventPublisher).publishArtifactCleanupRequested(captor.capture());
         assertThat(captor.getValue().requestId()).isEqualTo(id);
         assertThat(captor.getValue().name()).isEqualTo(request.name());
+        assertThat(captor.getValue().artifactRef()).isEqualTo(request.artifactRef());
+        assertThat(captor.getValue().imageRef()).isEqualTo(request.imageRef());
+        assertThat(captor.getValue().deploymentNamespace()).isEqualTo(request.deploymentNamespace());
     }
 
     @Test
@@ -536,6 +538,70 @@ class GenerationRequestServiceTest {
                 request.createdAt(),
                 request.updatedAt()
         );
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Upper", "bad_name", "-bad", "bad-", "a.b"})
+    void rejectsInvalidKubernetesNamespace(String namespace) {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.requestDeployment(new RequestDeploymentUseCase.Command(current.id(), namespace, 1)))
+                .isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, -1, 21})
+    void rejectsOutOfRangeReplicas(int replicas) {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.requestDeployment(new RequestDeploymentUseCase.Command(current.id(), "generated-dev", replicas)))
+                .isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+    }
+
+    @Test
+    void completesUndeployAndRetainsAssets() {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.UNDEPLOYING);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.updateDeploymentStatus(current.id(),
+                new UpdateDeploymentRequestStatusUseCase.Command(DeploymentStatus.NOT_DEPLOYED, "Removed", null, current.deploymentNamespace())))
+                .isEqualTo(UpdateDeploymentRequestStatusUseCase.Result.UPDATED);
+        ArgumentCaptor<GenerationRequest> saved = ArgumentCaptor.forClass(GenerationRequest.class);
+        verify(generationRequestRepository).save(saved.capture());
+        assertThat(saved.getValue().artifactRef()).isEqualTo(current.artifactRef());
+        assertThat(saved.getValue().imageRef()).isEqualTo(current.imageRef());
+        assertThat(saved.getValue().deploymentNamespace()).isEqualTo(current.deploymentNamespace());
+    }
+
+    private GenerationRequest withNamespace(GenerationRequest c) {
+        return new GenerationRequest(c.id(), c.name(), c.template(), c.database(), c.restApi(), c.security(),
+                c.messaging(), c.deploymentTarget(), c.generationStatus(), c.deploymentStatus(), c.specJson(),
+                c.message(), c.artifactRef(), c.imageRef(), "generated-dev", c.createdAt(), c.updatedAt(),
+                c.failureStage(), c.retryCount());
+    }
+
+    @Test
+    void allowsUndeployFromFailureWithoutImage() {
+        GenerationRequest current = withNamespace(withArtifactAndImageRefs(
+                withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.DEPLOYMENT_FAILED), "s3://a/b", null));
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        when(generationRequestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        assertThat(generationRequestService.requestUndeployment(current.id())).isEqualTo(RequestUndeploymentUseCase.Result.ACCEPTED);
+    }
+
+    @Test
+    void rejectsUndeployWithoutNamespace() {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.requestUndeployment(current.id())).isEqualTo(RequestUndeploymentUseCase.Result.INVALID_TRANSITION);
+    }
+
+    @Test
+    void rejectsCallbackForAnotherNamespace() {
+        GenerationRequest current = withNamespace(withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.DEPLOYING));
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+        assertThat(generationRequestService.updateDeploymentStatus(current.id(),
+                new UpdateDeploymentRequestStatusUseCase.Command(DeploymentStatus.DEPLOYED, null, null, "another")))
+                .isEqualTo(UpdateDeploymentRequestStatusUseCase.Result.INVALID_TRANSITION);
     }
 
     private RequestDeploymentUseCase.Command deployCommand(UUID id) {

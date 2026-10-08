@@ -101,7 +101,8 @@ public class GenerationRequestApiMapper {
         return new UpdateDeploymentRequestStatusUseCase.Command(
                 DeploymentStatus.valueOf(request.getDeploymentStatus().getValue()),
                 request.getMessage(),
-                request.getImageRef()
+                request.getImageRef(),
+                request.getNamespace()
         );
     }
 

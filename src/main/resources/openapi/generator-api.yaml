@@ -130,6 +130,7 @@ paths:
     delete:
       tags:
         - GenerationRequest
+      description: Permanently deletes the request and asynchronously requests best-effort removal of its persistent artifact, PVC workspace and Docker Hub tag. Undeploy or disable retains artifacts and images.
       operationId: deleteGenerationRequestById
       parameters:
         - $ref: '#/components/parameters/GenerationRequestId'
@@ -146,10 +147,11 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /generation-requests/{id}/deploy:
+  /generation-requests/{id}/deployment:
     post:
       tags:
         - GenerationRequest
+      description: Requires GENERATED, artifactRef and imageRef, and NOT_DEPLOYED or DEPLOYMENT_FAILED. Sets DEPLOYING and publishes deployment-requested.
       operationId: deployGenerationRequest
       parameters:
         - $ref: '#/components/parameters/GenerationRequestId'
@@ -174,10 +176,10 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /generation-requests/{id}/deployment:
     delete:
       tags:
         - GenerationRequest
+      description: Requires DEPLOYED or DEPLOYMENT_FAILED and a known namespace. Sets UNDEPLOYING while retaining the artifact and image for future redeployment.
       operationId: undeployGenerationRequest
       parameters:
         - $ref: '#/components/parameters/GenerationRequestId'
@@ -231,7 +233,7 @@ paths:
       tags:
         - InternalGenerationRequest
       summary: Update deployment lifecycle status
-      description: Internal callback used by deployment-worker to report deployment progress and results.
+      description: Authenticated callback reporting terminal deployment results. DEPLOYING accepts DEPLOYED or DEPLOYMENT_FAILED; UNDEPLOYING accepts NOT_DEPLOYED or DEPLOYMENT_FAILED. Supplied namespace must match. Last namespace is retained; stale transitions return 409.
       operationId: updateGenerationRequestDeploymentStatus
       parameters:
         - $ref: '#/components/parameters/InternalGenerationRequestId'
@@ -353,13 +355,17 @@ components:
       type: object
       required:
         - namespace
+        - replicas
       properties:
         namespace:
           type: string
           minLength: 1
+          maxLength: 63
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
         replicas:
           type: integer
           minimum: 1
+          maximum: 20
     GenerationStatusUpdateRequest:
       type: object
       required:
@@ -399,9 +405,7 @@ components:
           type: string
           description: Current deployment status reported by deployment-worker.
           enum:
-            - DEPLOYING
             - DEPLOYED
-            - UNDEPLOYING
             - NOT_DEPLOYED
             - DEPLOYMENT_FAILED
         message:
@@ -410,6 +414,11 @@ components:
         imageRef:
           type: string
           description: Optional reference to the deployed container image.
+        namespace:
+          type: string
+          maxLength: 63
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          description: Must match the persisted deployment namespace.
     GenerationRequestResponse:
       type: object
       required: [id, name, template, deploymentTarget, features, generation, deployment, timestamps]

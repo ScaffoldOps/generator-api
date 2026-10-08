@@ -25,7 +25,7 @@ Health:
 API endpoints:
 - `POST /api/generator/v1/generation-requests`
 - `DELETE /api/generator/v1/generation-requests/{id}`
-- `POST /api/generator/v1/generation-requests/{id}/deploy`
+- `POST /api/generator/v1/generation-requests/{id}/deployment`
 - `DELETE /api/generator/v1/generation-requests/{id}/deployment`
 - `GET /api/generator/v1/generation-requests/{id}`
 - `GET /api/generator/v1/generation-requests`
@@ -39,15 +39,16 @@ Create request body:
 - `database`, `restApi`, `security`, `messaging`: optional booleans describing requested capabilities
 
 Response fields:
-- `generationStatus`: one of `RECEIVED`, `GENERATING`, `GENERATED`, `GENERATION_FAILED`
-- `deploymentStatus`: one of `NOT_DEPLOYED`, `DEPLOYMENT_REQUESTED`, `DEPLOYING`, `DEPLOYED`, `UNDEPLOYMENT_REQUESTED`, `UNDEPLOYING`, `DEPLOYMENT_FAILED`
-- `message`, `artifactRef`, and `imageRef`: nullable generation result metadata
-- `createdAt` and `updatedAt`: RFC 3339 timestamps
+- `generation.status`: one of `RECEIVED`, `GENERATING`, `GENERATED`, `GENERATION_FAILED`
+- `deployment.status`: one of `NOT_DEPLOYED`, `DEPLOYING`, `DEPLOYED`, `UNDEPLOYING`, `DEPLOYMENT_FAILED` (legacy requested states remain readable for existing rows)
+- `generation.message`, `generation.artifactRef`, and `generation.imageRef`: nullable generation result metadata
+- `deployment.namespace`: last deployment namespace, nullable
+- `timestamps.createdAt` and `timestamps.updatedAt`: RFC 3339 timestamps
 
 Lifecycle behavior:
 - `POST /generation-requests` creates the request with `generationStatus=RECEIVED` and `deploymentStatus=NOT_DEPLOYED`, then publishes `generation-requested`.
-- `POST /generation-requests/{id}/deploy` is accepted only when `generationStatus=GENERATED` and deployment is not already requested, running, deployed, or undeploying. It sets `deploymentStatus=DEPLOYMENT_REQUESTED` and publishes `deployment-requested`.
-- `DELETE /generation-requests/{id}/deployment` is accepted only when `deploymentStatus=DEPLOYED`. It sets `deploymentStatus=UNDEPLOYMENT_REQUESTED` and publishes `undeployment-requested`.
+- `POST /generation-requests/{id}/deployment` is accepted only when `generationStatus=GENERATED` and deployment is not already requested, running, deployed, or undeploying. It sets `deploymentStatus=DEPLOYING` and publishes `deployment-requested`.
+- `DELETE /generation-requests/{id}/deployment` is accepted only when `deploymentStatus=DEPLOYED` or `DEPLOYMENT_FAILED`, with a known namespace. It sets `deploymentStatus=UNDEPLOYING` and publishes `undeployment-requested`.
 - Invalid lifecycle actions return `409 Conflict`.
 - Internal generation callbacks can update only `generationStatus`; internal deployment callbacks can update only `deploymentStatus`.
 
@@ -77,7 +78,7 @@ worker also accepts the legacy `status` field during migration. Deploy
 the compatible worker before the API publisher. REST lifecycle fields continue
 to use `generationStatus` and `deploymentStatus`.
 
-Response fields `message`, `artifactRef`, `imageRef`, and `deploymentNamespace`
+Response fields `generation.message`, `generation.artifactRef`, `generation.imageRef`, and `deployment.namespace`
 are JSON strings or explicit nulls. OpenAPI generation uses `openApiNullable=false`
 because these models do not require a distinction between absent and null values.
 The shared `src/test/resources/contracts/generation-requested.json` fixture is
@@ -102,3 +103,13 @@ exhausted). Diagnostics do not introduce additional lifecycle statuses.
 The SQL initialization script adds nullable `failure_stage` and `retry_count`
 columns for existing installations. OpenAPI response fields remain strings,
 numbers, or nulls through `openApiNullable=false`.
+
+## MVP deployment lifecycle
+
+POST /generation-requests/{id}/deployment accepts {"namespace":"generated-dev","replicas":1} (202); namespace must be a DNS label of at most 63 characters, replicas 1–20. GENERATED and both artifact/image references are required. NOT_DEPLOYED or DEPLOYMENT_FAILED becomes DEPLOYING.
+
+DELETE /generation-requests/{id}/deployment accepts DEPLOYED or DEPLOYMENT_FAILED with a known namespace (202), sets UNDEPLOYING and retains the DB request, artifact and image. Cancellation during DEPLOYING is rejected to avoid racing Kubernetes writes. DELETE /generation-requests/{id} remains permanent deletion.
+
+PATCH /internal/generation-requests/{id}/deployment-status reports DEPLOYED or DEPLOYMENT_FAILED from DEPLOYING; NOT_DEPLOYED or DEPLOYMENT_FAILED from UNDEPLOYING. The last namespace is retained. A supplied namespace must match; stale state transitions return 409. Callbacks require JWT authentication. Identical terminal callbacks are idempotent.
+
+Kafka deployment publications wait for broker acknowledgement; failure rolls back lifecycle state. PostgreSQL and Kafka have no outbox, so commit failure after publication still requires reconciliation. Kafka events are keyed by request UUID. deployment-requested contains generationRequestId, name, artifactRef, imageRef, namespace, replicas, requestedAt. undeployment-requested contains generationRequestId, name, namespace, requestedAt. The old /deploy endpoint is superseded.

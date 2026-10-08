@@ -124,7 +124,7 @@ class InternalGenerationRequestControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "deploymentStatus": "DEPLOYING",
+                                  "deploymentStatus": "DEPLOYED",
                                   "message": "Deployment started",
                                   "imageRef": "registry/billing:latest"
                                 }
@@ -134,7 +134,7 @@ class InternalGenerationRequestControllerTest {
         verify(updateDeploymentRequestStatusUseCase).updateDeploymentStatus(
                 requestId,
                 new UpdateDeploymentRequestStatusUseCase.Command(
-                        DeploymentStatus.DEPLOYING,
+                        DeploymentStatus.DEPLOYED,
                         "Deployment started",
                         "registry/billing:latest"
                 )

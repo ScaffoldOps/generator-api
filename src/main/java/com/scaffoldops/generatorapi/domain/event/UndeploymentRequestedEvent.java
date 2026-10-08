@@ -6,11 +6,11 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record UndeploymentRequestedEvent(
-        UUID requestId,
-        String serviceName,
-        DeploymentTarget deploymentTarget,
-        String artifactRef,
-        String imageRef,
+        @com.fasterxml.jackson.annotation.JsonProperty("generationRequestId") UUID requestId,
+        @com.fasterxml.jackson.annotation.JsonProperty("name") String serviceName,
+        @com.fasterxml.jackson.annotation.JsonIgnore DeploymentTarget deploymentTarget,
+        @com.fasterxml.jackson.annotation.JsonIgnore String artifactRef,
+        @com.fasterxml.jackson.annotation.JsonIgnore String imageRef,
         String namespace,
         OffsetDateTime requestedAt
 ) {

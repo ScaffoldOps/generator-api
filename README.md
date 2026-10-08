@@ -11,7 +11,7 @@ The previous TFG MVP generated services only: `generator-api` stored requests, p
 - Persists requests in PostgreSQL
 - Stores `generationStatus` and `deploymentStatus` as independent lifecycle fields
 - Publishes a `generation-requested` Kafka event after a request is stored
-- Accepts explicit deployment requests through `POST /generation-requests/{id}/deploy`
+- Accepts explicit deployment requests through `POST /generation-requests/{id}/deployment`
 - Accepts explicit undeployment requests through `DELETE /generation-requests/{id}/deployment`
 - Publishes `deployment-requested` and `undeployment-requested` Kafka events for those user actions
 - Publishes an `artifact-cleanup-requested` Kafka event after a request is deleted
@@ -32,7 +32,7 @@ Generation states:
 `RECEIVED`, `GENERATING`, `GENERATED`, `GENERATION_FAILED`.
 
 Deployment states:
-`NOT_DEPLOYED`, `DEPLOYMENT_REQUESTED`, `DEPLOYING`, `DEPLOYED`, `UNDEPLOYMENT_REQUESTED`, `UNDEPLOYING`, `DEPLOYMENT_FAILED`.
+`NOT_DEPLOYED`, `DEPLOYING`, `DEPLOYED`, `UNDEPLOYING`, `DEPLOYMENT_FAILED` (legacy requested states remain readable for existing rows).
 
 Creating a generation request always sets:
 
@@ -129,33 +129,24 @@ filesystem, backed by the worker PVC:
 file:///var/lib/generator-worker/manifests/<serviceName>-<requestId>/
 ```
 
-The generated files survive `generator-worker` pod recreation because
-`generator-worker` mounts `generator-worker-artifacts-pvc` at
-`/var/lib/generator-worker`. This is not a real Artifact Store: there is no
-MinIO/S3 integration, artifact download API, or implemented `deployment-worker`
-in the MVP.
+Delete is permanent: `DELETE /generation-requests/{id}` removes the PostgreSQL row and publishes
+`artifact-cleanup-requested` with `requestId`, `name`, `artifactRef`, `imageRef`,
+`deploymentNamespace` (nullable), and `deletedAt`. HTTP 204 means accepted, not that
+external cleanup has finished; 404 means the request was absent.
 
-Deleting a request publishes an asynchronous cleanup event to Kafka:
+The worker independently removes the PVC workspace, MinIO object (or explicit trailing-slash
+prefix), safe legacy file artifact, and configured Docker Hub tag. Cleanup is asynchronous
+and best-effort. Undeploy/disable retains artifacts and images for restoration/redeployment.
+The API never accesses MinIO, Docker Hub, or the worker PVC.
 
-```text
-artifact-cleanup-requested
-```
-
-The cleanup flow is:
-
-```text
-DELETE /generation-requests/{id}
-  -> generator-api deletes the PostgreSQL request row
-  -> generator-api publishes artifact-cleanup-requested
-  -> generator-worker consumes the event
-  -> generator-worker deletes /var/lib/generator-worker/manifests/<serviceName>-<requestId>/
-```
-
-`generator-api` owns request lifecycle state and the deletion API.
-`generator-worker` owns generated artifacts and PVC cleanup. `generator-api`
-must not access the worker PVC directly. Cleanup is eventually consistent, not
-transactional with the database delete; if `generator-worker` is down, cleanup
-waits until Kafka is consumed.
+Deletion holds a database transaction and row lock until Kafka acknowledges publication
+(up to 30 seconds). Publication failures roll back the row deletion. PostgreSQL and Kafka
+are still not atomic: a crash/commit failure after acknowledgement, or a send timeout whose
+message later succeeds, can clean assets while the row remains. No outbox was introduced.
+Operators must reconcile such failures; HTTP 204 cannot guarantee external removal.
+Deleting during active generation can also race with later asset creation; stop active work
+before permanent deletion. Docker Hub cleanup requires worker credentials with delete permission
+and explicit enablement; see generator-worker README.
 
 In the TFM deployment flow, `generator-api` is prepared to publish:
 
@@ -244,3 +235,5 @@ reservation adds one. Worker-local attempts during recovery do not increase it a
 For existing databases apply `docs/image-recovery.sql` before starting the API with schema validation.
 The local SQL initializer applies the same idempotent change. No cleanup is required. NULL retry counts
 are treated as zero; rows without an artifact or an eligible failure stage are deliberately ignored.
+
+Deployment MVP: see [API lifecycle documentation](docs/API.md#mvp-deployment-lifecycle). Use POST and DELETE `/generation-requests/{id}/deployment`; undeploy retains generated assets for redeploy.

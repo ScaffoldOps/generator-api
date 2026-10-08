@@ -11,8 +11,12 @@ public interface UpdateDeploymentRequestStatusUseCase {
     record Command(
             DeploymentStatus deploymentStatus,
             String message,
-            String imageRef
+            String imageRef,
+            String namespace
     ) {
+        public Command(DeploymentStatus status, String message, String imageRef) {
+            this(status, message, imageRef, null);
+        }
     }
 
     enum Result {

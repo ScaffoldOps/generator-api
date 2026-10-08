@@ -69,6 +69,8 @@ class KafkaGenerationRequestEventPublisherTest {
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
 
+        org.mockito.Mockito.when(kafkaTemplate.send("deployment-requested", requestId.toString(), event))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
         publisher.publishDeploymentRequested(event);
 
         verify(kafkaTemplate).send("deployment-requested", requestId.toString(), event);
@@ -89,6 +91,8 @@ class KafkaGenerationRequestEventPublisherTest {
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
 
+        org.mockito.Mockito.when(kafkaTemplate.send("undeployment-requested", requestId.toString(), event))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
         publisher.publishUndeploymentRequested(event);
 
         verify(kafkaTemplate).send("undeployment-requested", requestId.toString(), event);
@@ -108,9 +112,52 @@ class KafkaGenerationRequestEventPublisherTest {
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
 
+        org.mockito.Mockito.when(kafkaTemplate.send("artifact-cleanup-requested", requestId.toString(), event))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
         publisher.publishArtifactCleanupRequested(event);
 
         verify(kafkaTemplate).send("artifact-cleanup-requested", requestId.toString(), event);
+    }
+
+    @Test
+    void shouldPropagateCleanupPublicationFailure() {
+        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        var publisher = new KafkaGenerationRequestEventPublisher(kafkaTemplate, topics());
+        var event = new ArtifactCleanupRequestedEvent(UUID.randomUUID(), "billing", OffsetDateTime.now());
+        org.mockito.Mockito.when(kafkaTemplate.send("artifact-cleanup-requested", event.requestId().toString(), event))
+                .thenReturn(java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> publisher.publishArtifactCleanupRequested(event))
+                .isInstanceOf(IllegalStateException.class).hasMessage("cleanup publication was not acknowledged");
+    }
+
+    @Test
+    void deploymentJsonUsesSharedMvpContract() throws Exception {
+        var json = org.springframework.kafka.support.JacksonUtils.enhancedObjectMapper();
+        UUID id = UUID.randomUUID();
+        var deploy = json.readTree(json.writeValueAsString(new DeploymentRequestedEvent(id, "hello", DeploymentTarget.KUBERNETES,
+                "s3://a/b", "docker.io/a/b:tag", "generated-dev", 1, OffsetDateTime.now())));
+        org.assertj.core.api.Assertions.assertThat(deploy.size()).isEqualTo(7);
+        org.assertj.core.api.Assertions.assertThat(deploy.path("generationRequestId").asText()).isEqualTo(id.toString());
+        org.assertj.core.api.Assertions.assertThat(deploy.path("name").asText()).isEqualTo("hello");
+        org.assertj.core.api.Assertions.assertThat(deploy.path("artifactRef").asText()).isEqualTo("s3://a/b");
+        org.assertj.core.api.Assertions.assertThat(deploy.path("imageRef").asText()).isEqualTo("docker.io/a/b:tag");
+        org.assertj.core.api.Assertions.assertThat(deploy.path("replicas").asInt()).isEqualTo(1);
+        var undeploy = json.readTree(json.writeValueAsString(new UndeploymentRequestedEvent(id, "hello", DeploymentTarget.KUBERNETES,
+                "s3://a/b", "docker.io/a/b:tag", "generated-dev", OffsetDateTime.now())));
+        org.assertj.core.api.Assertions.assertThat(undeploy.size()).isEqualTo(4);
+        org.assertj.core.api.Assertions.assertThat(undeploy.path("namespace").asText()).isEqualTo("generated-dev");
+    }
+
+    @Test
+    void propagatesDeploymentBrokerFailure() {
+        KafkaTemplate<String, Object> kafka = mock(KafkaTemplate.class);
+        var publisher = new KafkaGenerationRequestEventPublisher(kafka, topics());
+        var event = new DeploymentRequestedEvent(UUID.randomUUID(), "hello", DeploymentTarget.KUBERNETES,
+                "s3://a/b", "image", "generated-dev", 1, OffsetDateTime.now());
+        org.mockito.Mockito.when(kafka.send("deployment-requested", event.requestId().toString(), event))
+                .thenReturn(java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> publisher.publishDeploymentRequested(event))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("not acknowledged");
     }
 
     private KafkaTopicProperties topics() {
