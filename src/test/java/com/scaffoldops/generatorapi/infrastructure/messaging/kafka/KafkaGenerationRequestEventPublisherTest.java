@@ -54,6 +54,9 @@ class KafkaGenerationRequestEventPublisherTest {
                 "billing-service",
                 DeploymentTarget.KUBERNETES,
                 "s3://artifacts/billing.zip",
+                "registry/billing:latest",
+                "scaffoldops-dev",
+                2,
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
 
@@ -72,6 +75,8 @@ class KafkaGenerationRequestEventPublisherTest {
                 "billing-service",
                 DeploymentTarget.KUBERNETES,
                 "s3://artifacts/billing.zip",
+                "registry/billing:latest",
+                "scaffoldops-dev",
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
 

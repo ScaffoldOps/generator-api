@@ -10,6 +10,9 @@ public record DeploymentRequestedEvent(
         String serviceName,
         DeploymentTarget deploymentTarget,
         String artifactRef,
+        String imageRef,
+        String namespace,
+        Integer replicas,
         OffsetDateTime requestedAt
 ) {
 }

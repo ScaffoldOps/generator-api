@@ -61,6 +61,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 null,
                 null,
                 null,
+                null,
                 now,
                 now
         );
@@ -114,14 +115,14 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
     }
 
     @Override
-    public RequestDeploymentUseCase.Result requestDeployment(UUID requestId) {
-        Optional<GenerationRequest> existingRequest = generationRequestRepository.findById(requestId);
+    public RequestDeploymentUseCase.Result requestDeployment(RequestDeploymentUseCase.Command command) {
+        Optional<GenerationRequest> existingRequest = generationRequestRepository.findById(command.requestId());
         if (existingRequest.isEmpty()) {
             return RequestDeploymentUseCase.Result.NOT_FOUND;
         }
 
         GenerationRequest current = existingRequest.get();
-        if (!canRequestDeployment(current)) {
+        if (!canRequestDeployment(current, command.namespace(), command.replicas())) {
             return RequestDeploymentUseCase.Result.INVALID_TRANSITION;
         }
 
@@ -141,6 +142,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.message(),
                 current.artifactRef(),
                 current.imageRef(),
+                command.namespace(),
                 current.createdAt(),
                 now
         );
@@ -150,6 +152,9 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 saved.name(),
                 saved.deploymentTarget(),
                 saved.artifactRef(),
+                saved.imageRef(),
+                saved.deploymentNamespace(),
+                command.replicas(),
                 now
         ));
         return RequestDeploymentUseCase.Result.ACCEPTED;
@@ -183,6 +188,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.message(),
                 current.artifactRef(),
                 current.imageRef(),
+                current.deploymentNamespace(),
                 current.createdAt(),
                 now
         );
@@ -192,6 +198,8 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 saved.name(),
                 saved.deploymentTarget(),
                 saved.artifactRef(),
+                saved.imageRef(),
+                saved.deploymentNamespace(),
                 now
         ));
         return RequestUndeploymentUseCase.Result.ACCEPTED;
@@ -226,7 +234,8 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 current.specJson(),
                 command.message() != null ? command.message() : current.message(),
                 command.artifactRef() != null ? command.artifactRef() : current.artifactRef(),
-                current.imageRef(),
+                command.imageRef() != null ? command.imageRef() : current.imageRef(),
+                current.deploymentNamespace(),
                 current.createdAt(),
                 OffsetDateTime.now()
         );
@@ -264,6 +273,7 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
                 command.message() != null ? command.message() : current.message(),
                 current.artifactRef(),
                 command.imageRef() != null ? command.imageRef() : current.imageRef(),
+                current.deploymentNamespace(),
                 current.createdAt(),
                 OffsetDateTime.now()
         );
@@ -271,14 +281,26 @@ public class GenerationRequestService implements CreateGenerationRequestUseCase,
         return UpdateDeploymentRequestStatusUseCase.Result.UPDATED;
     }
 
-    private boolean canRequestDeployment(GenerationRequest current) {
+    private boolean canRequestDeployment(GenerationRequest current, String namespace, Integer replicas) {
         if (current.generationStatus() != GenerationStatus.GENERATED) {
+            return false;
+        }
+        if (isBlank(current.artifactRef()) || isBlank(current.imageRef()) || isBlank(namespace)
+                || isInvalidReplicas(replicas)) {
             return false;
         }
         return switch (current.deploymentStatus()) {
             case NOT_DEPLOYED, DEPLOYMENT_FAILED -> true;
             case DEPLOYMENT_REQUESTED, DEPLOYING, DEPLOYED, UNDEPLOYMENT_REQUESTED, UNDEPLOYING -> false;
         };
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private boolean isInvalidReplicas(Integer replicas) {
+        return replicas != null && replicas < 1;
     }
 
     private boolean isValidGenerationTransition(GenerationStatus current, GenerationStatus target) {

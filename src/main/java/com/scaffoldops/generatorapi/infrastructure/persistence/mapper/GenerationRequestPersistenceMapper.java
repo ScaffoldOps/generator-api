@@ -23,6 +23,7 @@ public class GenerationRequestPersistenceMapper {
                 generationRequest.message(),
                 generationRequest.artifactRef(),
                 generationRequest.imageRef(),
+                generationRequest.deploymentNamespace(),
                 generationRequest.createdAt(),
                 generationRequest.updatedAt()
         );
@@ -44,6 +45,7 @@ public class GenerationRequestPersistenceMapper {
                 entity.getMessage(),
                 entity.getArtifactRef(),
                 entity.getImageRef(),
+                entity.getDeploymentNamespace(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

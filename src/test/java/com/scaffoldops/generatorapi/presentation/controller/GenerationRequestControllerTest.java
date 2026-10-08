@@ -142,18 +142,33 @@ class GenerationRequestControllerTest {
     @Test
     void shouldRequestDeployment() throws Exception {
         UUID id = UUID.randomUUID();
-        when(requestDeploymentUseCase.requestDeployment(id)).thenReturn(RequestDeploymentUseCase.Result.ACCEPTED);
+        when(requestDeploymentUseCase.requestDeployment(
+                new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", 2)
+        )).thenReturn(RequestDeploymentUseCase.Result.ACCEPTED);
 
-        mockMvc.perform(post("/generation-requests/{id}/deploy", id).with(jwt()))
+        mockMvc.perform(post("/generation-requests/{id}/deploy", id)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "namespace": "scaffoldops-dev",
+                                  "replicas": 2
+                                }
+                                """))
                 .andExpect(status().isAccepted());
     }
 
     @Test
     void shouldReturnConflictWhenDeploymentStateIsInvalid() throws Exception {
         UUID id = UUID.randomUUID();
-        when(requestDeploymentUseCase.requestDeployment(id)).thenReturn(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+        when(requestDeploymentUseCase.requestDeployment(
+                new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", null)
+        )).thenReturn(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
 
-        mockMvc.perform(post("/generation-requests/{id}/deploy", id).with(jwt()))
+        mockMvc.perform(post("/generation-requests/{id}/deploy", id)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"namespace\":\"scaffoldops-dev\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("Generation request cannot be deployed from its current lifecycle state"));
@@ -297,6 +312,7 @@ class GenerationRequestControllerTest {
                 GenerationStatus.RECEIVED,
                 DeploymentStatus.NOT_DEPLOYED,
                 "{\"name\":\"billing-service\"}",
+                null,
                 null,
                 null,
                 null,

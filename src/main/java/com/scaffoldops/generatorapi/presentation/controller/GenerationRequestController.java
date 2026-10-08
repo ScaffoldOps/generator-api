@@ -8,6 +8,7 @@ import com.scaffoldops.generatorapi.application.port.in.RequestDeploymentUseCase
 import com.scaffoldops.generatorapi.application.port.in.RequestUndeploymentUseCase;
 import com.scaffoldops.generatorapi.openapi.api.GenerationRequestApi;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
+import com.scaffoldops.generatorapi.openapi.model.DeployGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
 import com.scaffoldops.generatorapi.presentation.mapper.GenerationRequestApiMapper;
 import org.springframework.http.ResponseEntity;
@@ -72,8 +73,10 @@ public class GenerationRequestController implements GenerationRequestApi {
     }
 
     @Override
-    public ResponseEntity<Void> deployGenerationRequest(UUID id) {
-        RequestDeploymentUseCase.Result result = requestDeploymentUseCase.requestDeployment(id);
+    public ResponseEntity<Void> deployGenerationRequest(UUID id, DeployGenerationRequestRequest request) {
+        RequestDeploymentUseCase.Result result = requestDeploymentUseCase.requestDeployment(
+                generationRequestApiMapper.toCommand(id, request)
+        );
         return switch (result) {
             case ACCEPTED -> ResponseEntity.accepted().build();
             case NOT_FOUND -> throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Generation request not found");

@@ -151,6 +151,7 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 "Generation completed",
                 "s3://artifacts/catalog.zip",
                 "registry/catalog:latest",
+                "scaffoldops-dev",
                 createdAt,
                 createdAt.plusMinutes(2)
         );
@@ -163,6 +164,7 @@ class JpaGenerationRequestRepositoryAdapterTest {
         assertThat(reloaded.message()).isEqualTo("Generation completed");
         assertThat(reloaded.artifactRef()).isEqualTo("s3://artifacts/catalog.zip");
         assertThat(reloaded.imageRef()).isEqualTo("registry/catalog:latest");
+        assertThat(reloaded.deploymentNamespace()).isEqualTo("scaffoldops-dev");
     }
 
     private GenerationRequest persist(
@@ -185,6 +187,7 @@ class JpaGenerationRequestRepositoryAdapterTest {
                 generationStatus,
                 deploymentStatus,
                 "{\"name\":\"" + name + "\"}",
+                null,
                 null,
                 null,
                 null,

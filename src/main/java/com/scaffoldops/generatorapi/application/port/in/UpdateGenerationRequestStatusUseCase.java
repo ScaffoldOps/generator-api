@@ -11,7 +11,8 @@ public interface UpdateGenerationRequestStatusUseCase {
     record Command(
             GenerationStatus generationStatus,
             String message,
-            String artifactRef
+            String artifactRef,
+            String imageRef
     ) {
     }
 

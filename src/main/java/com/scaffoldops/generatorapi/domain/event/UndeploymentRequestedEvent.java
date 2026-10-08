@@ -10,6 +10,8 @@ public record UndeploymentRequestedEvent(
         String serviceName,
         DeploymentTarget deploymentTarget,
         String artifactRef,
+        String imageRef,
+        String namespace,
         OffsetDateTime requestedAt
 ) {
 }

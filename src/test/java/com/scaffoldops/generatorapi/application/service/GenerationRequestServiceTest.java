@@ -102,13 +102,14 @@ class GenerationRequestServiceTest {
         when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
         when(generationRequestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(current.id());
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(current.id()));
 
         ArgumentCaptor<GenerationRequest> requestCaptor = ArgumentCaptor.forClass(GenerationRequest.class);
         verify(generationRequestRepository).save(requestCaptor.capture());
         assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.ACCEPTED);
         assertThat(requestCaptor.getValue().generationStatus()).isEqualTo(GenerationStatus.GENERATED);
         assertThat(requestCaptor.getValue().deploymentStatus()).isEqualTo(DeploymentStatus.DEPLOYMENT_REQUESTED);
+        assertThat(requestCaptor.getValue().deploymentNamespace()).isEqualTo("scaffoldops-dev");
 
         ArgumentCaptor<DeploymentRequestedEvent> eventCaptor = ArgumentCaptor.forClass(DeploymentRequestedEvent.class);
         verify(generationRequestEventPublisher).publishDeploymentRequested(eventCaptor.capture());
@@ -116,7 +117,56 @@ class GenerationRequestServiceTest {
         assertThat(eventCaptor.getValue().serviceName()).isEqualTo(current.name());
         assertThat(eventCaptor.getValue().deploymentTarget()).isEqualTo(DeploymentTarget.KUBERNETES);
         assertThat(eventCaptor.getValue().artifactRef()).isEqualTo(current.artifactRef());
+        assertThat(eventCaptor.getValue().imageRef()).isEqualTo(current.imageRef());
+        assertThat(eventCaptor.getValue().namespace()).isEqualTo("scaffoldops-dev");
+        assertThat(eventCaptor.getValue().replicas()).isEqualTo(2);
         assertThat(eventCaptor.getValue().requestedAt()).isNotNull();
+    }
+
+    @Test
+    void shouldRejectDeploymentWhenArtifactRefIsMissing() {
+        GenerationRequest current = withArtifactAndImageRefs(
+                withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED),
+                null,
+                "registry/billing:latest"
+        );
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(current.id()));
+
+        assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+        verify(generationRequestRepository, never()).save(any());
+        verify(generationRequestEventPublisher, never()).publishDeploymentRequested(any());
+    }
+
+    @Test
+    void shouldRejectDeploymentWhenImageRefIsMissing() {
+        GenerationRequest current = withArtifactAndImageRefs(
+                withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED),
+                "s3://artifacts/billing.zip",
+                " "
+        );
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(current.id()));
+
+        assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+        verify(generationRequestRepository, never()).save(any());
+        verify(generationRequestEventPublisher, never()).publishDeploymentRequested(any());
+    }
+
+    @Test
+    void shouldRejectDeploymentWhenNamespaceIsBlank() {
+        GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, DeploymentStatus.NOT_DEPLOYED);
+        when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
+
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(
+                new RequestDeploymentUseCase.Command(current.id(), " ", 1)
+        );
+
+        assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
+        verify(generationRequestRepository, never()).save(any());
+        verify(generationRequestEventPublisher, never()).publishDeploymentRequested(any());
     }
 
     @Test
@@ -124,7 +174,7 @@ class GenerationRequestServiceTest {
         GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATING, DeploymentStatus.NOT_DEPLOYED);
         when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
 
-        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(current.id());
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(current.id()));
 
         assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
         verify(generationRequestRepository, never()).save(any());
@@ -142,7 +192,7 @@ class GenerationRequestServiceTest {
         GenerationRequest current = withStatuses(sample(), GenerationStatus.GENERATED, deploymentStatus);
         when(generationRequestRepository.findById(current.id())).thenReturn(Optional.of(current));
 
-        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(current.id());
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(current.id()));
 
         assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.INVALID_TRANSITION);
         verify(generationRequestRepository, never()).save(any());
@@ -167,6 +217,8 @@ class GenerationRequestServiceTest {
         assertThat(eventCaptor.getValue().requestId()).isEqualTo(current.id());
         assertThat(eventCaptor.getValue().serviceName()).isEqualTo(current.name());
         assertThat(eventCaptor.getValue().artifactRef()).isEqualTo(current.artifactRef());
+        assertThat(eventCaptor.getValue().imageRef()).isEqualTo(current.imageRef());
+        assertThat(eventCaptor.getValue().namespace()).isEqualTo(current.deploymentNamespace());
     }
 
     @ParameterizedTest
@@ -194,7 +246,7 @@ class GenerationRequestServiceTest {
         UUID id = UUID.randomUUID();
         when(generationRequestRepository.findById(id)).thenReturn(Optional.empty());
 
-        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(id);
+        RequestDeploymentUseCase.Result result = generationRequestService.requestDeployment(deployCommand(id));
 
         assertThat(result).isEqualTo(RequestDeploymentUseCase.Result.NOT_FOUND);
         verify(generationRequestRepository, never()).save(any());
@@ -265,7 +317,8 @@ class GenerationRequestServiceTest {
                 new UpdateGenerationRequestStatusUseCase.Command(
                         GenerationStatus.GENERATING,
                         "Generation started",
-                        "s3://artifacts/billing.zip"
+                        "s3://artifacts/billing.zip",
+                        "registry/billing:latest"
                 )
         );
 
@@ -278,7 +331,7 @@ class GenerationRequestServiceTest {
         assertThat(saved.deploymentStatus()).isEqualTo(current.deploymentStatus());
         assertThat(saved.message()).isEqualTo("Generation started");
         assertThat(saved.artifactRef()).isEqualTo("s3://artifacts/billing.zip");
-        assertThat(saved.imageRef()).isEqualTo(current.imageRef());
+        assertThat(saved.imageRef()).isEqualTo("registry/billing:latest");
     }
 
     @Test
@@ -315,7 +368,7 @@ class GenerationRequestServiceTest {
 
         UpdateGenerationRequestStatusUseCase.Result result = generationRequestService.updateGenerationStatus(
                 current.id(),
-                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATED, null, null)
+                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATED, null, null, null)
         );
 
         assertThat(result).isEqualTo(UpdateGenerationRequestStatusUseCase.Result.INVALID_TRANSITION);
@@ -344,7 +397,7 @@ class GenerationRequestServiceTest {
 
         UpdateGenerationRequestStatusUseCase.Result result = generationRequestService.updateGenerationStatus(
                 current.id(),
-                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATING, null, null)
+                new UpdateGenerationRequestStatusUseCase.Command(GenerationStatus.GENERATING, null, null, null)
         );
 
         ArgumentCaptor<GenerationRequest> captor = ArgumentCaptor.forClass(GenerationRequest.class);
@@ -370,6 +423,7 @@ class GenerationRequestServiceTest {
                 "Initial message",
                 "s3://artifacts/billing.zip",
                 "registry/billing:previous",
+                null,
                 OffsetDateTime.parse("2026-03-07T10:15:30Z"),
                 OffsetDateTime.parse("2026-03-07T10:15:30Z")
         );
@@ -395,8 +449,39 @@ class GenerationRequestServiceTest {
                 request.message(),
                 request.artifactRef(),
                 request.imageRef(),
+                request.deploymentNamespace(),
                 request.createdAt(),
                 request.updatedAt()
         );
+    }
+
+    private GenerationRequest withArtifactAndImageRefs(
+            GenerationRequest request,
+            String artifactRef,
+            String imageRef
+    ) {
+        return new GenerationRequest(
+                request.id(),
+                request.name(),
+                request.template(),
+                request.database(),
+                request.restApi(),
+                request.security(),
+                request.messaging(),
+                request.deploymentTarget(),
+                request.generationStatus(),
+                request.deploymentStatus(),
+                request.specJson(),
+                request.message(),
+                artifactRef,
+                imageRef,
+                request.deploymentNamespace(),
+                request.createdAt(),
+                request.updatedAt()
+        );
+    }
+
+    private RequestDeploymentUseCase.Command deployCommand(UUID id) {
+        return new RequestDeploymentUseCase.Command(id, "scaffoldops-dev", 2);
     }
 }

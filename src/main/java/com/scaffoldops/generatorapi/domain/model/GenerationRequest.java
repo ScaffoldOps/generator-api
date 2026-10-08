@@ -18,6 +18,7 @@ public record GenerationRequest(
         String message,
         String artifactRef,
         String imageRef,
+        String deploymentNamespace,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

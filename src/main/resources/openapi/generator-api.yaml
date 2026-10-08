@@ -153,6 +153,12 @@ paths:
       operationId: deployGenerationRequest
       parameters:
         - $ref: '#/components/parameters/GenerationRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployGenerationRequestRequest'
       responses:
         '202':
           description: Deployment requested
@@ -337,6 +343,17 @@ components:
           type: boolean
         deploymentTarget:
           $ref: '#/components/schemas/DeploymentTarget'
+    DeployGenerationRequestRequest:
+      type: object
+      required:
+        - namespace
+      properties:
+        namespace:
+          type: string
+          minLength: 1
+        replicas:
+          type: integer
+          minimum: 1
     GenerationStatusUpdateRequest:
       type: object
       required:
@@ -355,6 +372,9 @@ components:
         artifactRef:
           type: string
           description: Optional reference to the generated artifact.
+        imageRef:
+          type: string
+          description: Optional reference to the generated container image.
     DeploymentStatusUpdateRequest:
       type: object
       required:
@@ -415,6 +435,9 @@ components:
           type: string
           nullable: true
         imageRef:
+          type: string
+          nullable: true
+        deploymentNamespace:
           type: string
           nullable: true
         createdAt:

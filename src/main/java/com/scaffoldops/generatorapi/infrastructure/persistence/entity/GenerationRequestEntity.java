@@ -62,6 +62,9 @@ public class GenerationRequestEntity {
     @Column(columnDefinition = "TEXT")
     private String imageRef;
 
+    @Column(columnDefinition = "TEXT")
+    private String deploymentNamespace;
+
     @Column(nullable = false)
     private OffsetDateTime createdAt;
 
@@ -87,6 +90,7 @@ public class GenerationRequestEntity {
             String message,
             String artifactRef,
             String imageRef,
+            String deploymentNamespace,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -104,6 +108,7 @@ public class GenerationRequestEntity {
         this.message = message;
         this.artifactRef = artifactRef;
         this.imageRef = imageRef;
+        this.deploymentNamespace = deploymentNamespace;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -162,6 +167,10 @@ public class GenerationRequestEntity {
 
     public String getImageRef() {
         return imageRef;
+    }
+
+    public String getDeploymentNamespace() {
+        return deploymentNamespace;
     }
 
     public OffsetDateTime getCreatedAt() {

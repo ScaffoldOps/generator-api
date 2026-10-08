@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.application.port.in.CreateGenerationRequestUseCase;
+import com.scaffoldops.generatorapi.application.port.in.RequestDeploymentUseCase;
 import com.scaffoldops.generatorapi.application.port.in.UpdateDeploymentRequestStatusUseCase;
 import com.scaffoldops.generatorapi.application.port.in.UpdateGenerationRequestStatusUseCase;
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
@@ -11,12 +12,15 @@ import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import com.scaffoldops.generatorapi.openapi.model.CreateGenerationRequestRequest;
+import com.scaffoldops.generatorapi.openapi.model.DeployGenerationRequestRequest;
 import com.scaffoldops.generatorapi.openapi.model.DeploymentStatusUpdateRequest;
 import com.scaffoldops.generatorapi.openapi.model.GenerationRequestResponse;
 import com.scaffoldops.generatorapi.openapi.model.GenerationStatusUpdateRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.UUID;
 
 @Component
 public class GenerationRequestApiMapper {
@@ -37,6 +41,14 @@ public class GenerationRequestApiMapper {
                 Boolean.TRUE.equals(request.getMessaging()),
                 DeploymentTarget.valueOf(request.getDeploymentTarget().getValue()),
                 toSpecJson(request)
+        );
+    }
+
+    public RequestDeploymentUseCase.Command toCommand(UUID requestId, DeployGenerationRequestRequest request) {
+        return new RequestDeploymentUseCase.Command(
+                requestId,
+                request.getNamespace(),
+                request.getReplicas()
         );
     }
 
@@ -61,6 +73,7 @@ public class GenerationRequestApiMapper {
                 .message(generationRequest.message())
                 .artifactRef(generationRequest.artifactRef())
                 .imageRef(generationRequest.imageRef())
+                .deploymentNamespace(generationRequest.deploymentNamespace())
                 .createdAt(generationRequest.createdAt())
                 .updatedAt(generationRequest.updatedAt());
     }
@@ -69,7 +82,8 @@ public class GenerationRequestApiMapper {
         return new UpdateGenerationRequestStatusUseCase.Command(
                 GenerationStatus.valueOf(request.getGenerationStatus().getValue()),
                 request.getMessage(),
-                request.getArtifactRef()
+                request.getArtifactRef(),
+                request.getImageRef()
         );
     }
 

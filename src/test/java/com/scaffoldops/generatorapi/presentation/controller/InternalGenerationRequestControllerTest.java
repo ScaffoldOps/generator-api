@@ -66,7 +66,8 @@ class InternalGenerationRequestControllerTest {
                                 {
                                   "generationStatus": "GENERATING",
                                   "message": "Generation started",
-                                  "artifactRef": "s3://artifacts/billing.zip"
+                                  "artifactRef": "s3://artifacts/billing.zip",
+                                  "imageRef": "registry/billing:latest"
                                 }
                                 """))
                 .andExpect(status().isNoContent());
@@ -76,7 +77,8 @@ class InternalGenerationRequestControllerTest {
                 new UpdateGenerationRequestStatusUseCase.Command(
                         GenerationStatus.GENERATING,
                         "Generation started",
-                        "s3://artifacts/billing.zip"
+                        "s3://artifacts/billing.zip",
+                        "registry/billing:latest"
                 )
         );
     }

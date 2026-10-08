@@ -4,7 +4,14 @@ import java.util.UUID;
 
 public interface RequestDeploymentUseCase {
 
-    Result requestDeployment(UUID requestId);
+    Result requestDeployment(Command command);
+
+    record Command(
+            UUID requestId,
+            String namespace,
+            Integer replicas
+    ) {
+    }
 
     enum Result {
         ACCEPTED,

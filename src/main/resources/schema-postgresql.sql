@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS generation_requests (
     message TEXT,
     artifact_ref TEXT,
     image_ref TEXT,
+    deployment_namespace TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT uk_generation_requests_name UNIQUE (name)
@@ -32,6 +33,9 @@ ALTER TABLE generation_requests
 
 ALTER TABLE generation_requests
     ADD COLUMN IF NOT EXISTS image_ref TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS deployment_namespace TEXT;
 
 ALTER TABLE generation_requests
     ADD COLUMN IF NOT EXISTS generation_status VARCHAR(255) NOT NULL DEFAULT 'RECEIVED';
