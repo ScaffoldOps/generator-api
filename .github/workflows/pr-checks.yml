@@ -17,6 +17,9 @@ permissions:
   contents: read
 
 jobs:
+  manifest_checks:
+    uses: ./.github/workflows/manifest-checks.yml
+
   code_quality:
     name: Code Quality
     runs-on: self-hosted

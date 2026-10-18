@@ -14,11 +14,11 @@ Kafka port-forward alone does not fix broker metadata advertising `kafka:9092`; 
 
 | Variable | Use |
 | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | `local` for host execution; `dev` in the DEV cluster |
+| `SPRING_PROFILES_ACTIVE` | `local` for host execution; `dev` in DEV; `pre` in PRE |
 | `DB_PASSWORD` | Required database password; `DB_USER` defaults to `generatorapiuser` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Reachable broker; host default `localhost:9092` |
-| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI` | Local issuer, default `http://localhost:8080/realms/scaffoldops-dev` |
-| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI` | DEV uses the Keycloak DEV realm JWKS endpoint |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI` | Local issuer defaults to `http://localhost:8080/realms/scaffoldops-dev`; PRE validates `http://keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI` | Environment-specific Keycloak realm JWKS endpoint; PRE uses `keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre/protocol/openid-connect/certs` over HTTP |
 | `SERVER_PORT` | Default `8080`; use `8081` alongside local Keycloak |
 
 Kubernetes reads `postgres-credentials/POSTGRES_GENERATOR_API_PASSWORD` in the application namespace. Topic overrides and scheduler settings are in `src/main/resources/application.yml`.
@@ -44,12 +44,23 @@ Build the JAR before docker build. CI publishes `victodomvar/scaffoldops-generat
 After applying shared infrastructure and creating component secrets:
 
 ```bash
-kubectl -n scaffoldops-dev apply -f k8s/deployment/generator-api-service.yaml
-kubectl -n scaffoldops-dev apply -f k8s/deployment/generator-api-deployment.yaml
+kubectl apply -k k8s/overlays/dev
 kubectl -n scaffoldops-dev rollout status deploy/generator-api-deployment
+# PRE, after its infrastructure and credentials have been provisioned:
+kubectl apply -k k8s/overlays/pre
+kubectl -n scaffoldops-pre rollout status deploy/generator-api-deployment --timeout=600s
 ```
 
-Deployment is `generator-api-deployment`; Service is `generator-api-service`, port 80 → 8080. The DEV manifest uses a namespace-local PostgreSQL Service; see the documented infrastructure gap before expecting it to start.
+Deployment is `generator-api-deployment`; canonical Service is `generator-api-service`, port 80 → 8080. Both workers must use `http://generator-api-service/api/generator/v1` in both namespaces. DEV also retains a compatibility Service `generator-api` on ports 80 and 8081 for existing callers; new configuration must use the canonical Service. Infrastructure provisioning remains separate: both environments require namespace-local PostgreSQL and Kafka, the correct Keycloak realm, and existing database credentials.
+
+Use the environment overlays, not the base deployment directly. The startup probe allows up to five minutes for JVM, database/schema validation and web startup before liveness checks begin; TCP probes retain the existing health semantics. PRE supplies both issuer and JWKS URIs: Spring validates the token issuer without requiring discovery at startup. The legacy JWKS-only decoder is limited to DEV. If Keycloak advertises a different issuer for externally obtained tokens, coordinate that exact issuer with the PRE overlay; never disable issuer validation to work around a mismatch.
+
+Offline manifest and workflow checks (Python 3, PyYAML and `kubectl` required):
+
+```bash
+python3 -m pip install 'PyYAML>=6,<7'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests -v
+```
 
 ## GitHub Actions
 

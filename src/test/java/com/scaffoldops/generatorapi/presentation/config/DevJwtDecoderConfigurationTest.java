@@ -10,7 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DevJwtDecoderConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(DevJwtDecoderConfiguration.class);
+            .withUserConfiguration(DevJwtDecoderConfiguration.class)
+            .withPropertyValues("spring.profiles.active=dev");
 
     @Test
     void shouldCreateCustomJwtDecoderWhenJwkSetUriIsProvided() {
@@ -28,5 +29,13 @@ class DevJwtDecoderConfigurationTest {
     @Test
     void shouldNotCreateCustomJwtDecoderWithoutDevJwtProperties() {
         contextRunner.run(context -> assertThat(context).doesNotHaveBean(JwtDecoder.class));
+    }
+
+    @Test
+    void shouldNotOverridePreIssuerValidation() {
+        contextRunner.withPropertyValues(
+                "spring.profiles.active=pre",
+                "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost/certs"
+        ).run(context -> assertThat(context).doesNotHaveBean(JwtDecoder.class));
     }
 }

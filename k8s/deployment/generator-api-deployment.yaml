@@ -14,15 +14,11 @@ spec:
     spec:
       containers:
         - name: generator-api
-          image: victodomvar/scaffoldops-generator-api:develop
+          image: victodomvar/scaffoldops-generator-api:main
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "dev"
-            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
-              value: "http://keycloak-dev.security.svc.cluster.local:8080/realms/scaffoldops-dev/protocol/openid-connect/certs"
             - name: ARTIFACT_CLEANUP_REQUESTED_TOPIC
               value: "artifact-cleanup-requested"
             - name: DB_PASSWORD
@@ -30,6 +26,12 @@ spec:
                 secretKeyRef:
                   name: postgres-credentials
                   key: POSTGRES_GENERATOR_API_PASSWORD
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             tcpSocket:
               port: 8080

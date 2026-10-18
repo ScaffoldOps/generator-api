@@ -13,6 +13,9 @@ permissions:
   contents: read
 
 jobs:
+  manifest_checks:
+    uses: ./.github/workflows/manifest-checks.yml
+
   code_quality:
     name: Code Quality
     runs-on: self-hosted
@@ -133,6 +136,7 @@ jobs:
   deploy:
     name: Deploy to DEV
     needs:
+      - manifest_checks
       - docker_build
       - docker_push
     uses: ./.github/workflows/deploy-k8s.yml

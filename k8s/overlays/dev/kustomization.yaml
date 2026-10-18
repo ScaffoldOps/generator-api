@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: scaffoldops-dev
+resources:
+  - ../../deployment
+  - generator-api-legacy-service.yaml
+images:
+  - name: victodomvar/scaffoldops-generator-api
+    newTag: develop
+patches:
+  - path: environment.yaml
