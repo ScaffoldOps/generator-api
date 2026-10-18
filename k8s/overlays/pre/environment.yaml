@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generator-api-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: generator-api
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: pre
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: http://keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+              value: http://keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre/protocol/openid-connect/certs

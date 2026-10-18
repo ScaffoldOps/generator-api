@@ -13,6 +13,9 @@ permissions:
   contents: read
 
 jobs:
+  manifest_checks:
+    uses: ./.github/workflows/manifest-checks.yml
+
   code_quality:
     name: Code Quality
     runs-on: self-hosted
@@ -25,7 +28,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
 
       - name: Maven verify (skip tests)
         run: ./mvnw --batch-mode --no-transfer-progress verify -DskipTests
@@ -42,7 +44,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
 
       - name: Maven clean verify
         run: ./mvnw --batch-mode --no-transfer-progress clean verify
@@ -68,7 +69,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
 
       - name: Build application jar
         run: ./mvnw --batch-mode --no-transfer-progress clean package -DskipTests
@@ -109,7 +109,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: maven
 
       - name: Build application jar
         run: ./mvnw --batch-mode --no-transfer-progress clean package -DskipTests
@@ -133,6 +132,7 @@ jobs:
   deploy:
     name: Deploy to PRE
     needs:
+      - manifest_checks
       - docker_build
       - docker_push
     uses: ./.github/workflows/deploy-k8s.yml
