@@ -7,7 +7,47 @@ CREATE TABLE IF NOT EXISTS generation_requests (
     security BOOLEAN NOT NULL,
     messaging BOOLEAN NOT NULL,
     deployment_target VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL,
+    generation_status VARCHAR(255) NOT NULL,
+    deployment_status VARCHAR(255) NOT NULL,
+    spec_json TEXT NOT NULL,
+    message TEXT,
+    artifact_ref TEXT,
+    image_ref TEXT,
+    deployment_namespace TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT uk_generation_requests_name UNIQUE (name)
 );
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS spec_json TEXT NOT NULL DEFAULT '{}';
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS message TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS artifact_ref TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS image_ref TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS deployment_namespace TEXT;
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS generation_status VARCHAR(255) NOT NULL DEFAULT 'RECEIVED';
+
+ALTER TABLE generation_requests
+    ADD COLUMN IF NOT EXISTS deployment_status VARCHAR(255) NOT NULL DEFAULT 'NOT_DEPLOYED';
+
+ALTER TABLE generation_requests
+    DROP COLUMN IF EXISTS status;
+
+-- Additive migration for existing installations; safe to run repeatedly.
+ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS failure_stage VARCHAR(255);
+ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
+
+ALTER TABLE generation_requests ADD COLUMN IF NOT EXISTS recovery_reserved_until TIMESTAMP WITH TIME ZONE;

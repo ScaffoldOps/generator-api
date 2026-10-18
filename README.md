@@ -1,83 +1,76 @@
-# Generator API
+# generator-api
 
-## Purpose
-`generator-api` is the ScaffoldOps microservice responsible for receiving and storing scaffold generation requests.
+JWT-protected REST API and lifecycle system of record. Stores generation requests in PostgreSQL, publishes Kafka lifecycle events, accepts worker callbacks, and schedules image recovery.
 
-## What This Service Does
-- Accepts generation requests over REST
-- Validates request payloads
-- Persists requests in PostgreSQL
-- Exposes request status retrieval by id and list endpoints
+Platform guides: [ScaffoldOps documentation](https://github.com/ScaffoldOps/scaffoldops-docs) · [local setup](https://github.com/ScaffoldOps/scaffoldops-docs/blob/main/docs/local-development.md) · [configuration](https://github.com/ScaffoldOps/scaffoldops-docs/blob/main/docs/configuration.md) · [known gaps](https://github.com/ScaffoldOps/scaffoldops-docs/blob/main/docs/findings.md).
 
-## What This Service Does Not Do
-- Does not execute generation jobs
-- Does not deploy generated services
-- Does not publish Kafka events yet
-- Does not enforce authentication yet
+## Local requirements
 
-## Architecture
-Hexagonal (ports and adapters):
-- `domain`: request model and enums
-- `application`: use cases and repository port
-- `infrastructure`: JPA adapter and persistence mapping
-- `presentation`: OpenAPI-backed controllers, mappers, and API errors
+Java 17, Maven (wrapper included), a reachable Kafka broker, PostgreSQL and Keycloak.
 
-Dependency direction:
-`presentation/infrastructure -> application -> domain`
+Kafka port-forward alone does not fix broker metadata advertising `kafka:9092`; use a broker with a host-reachable advertised listener for host execution. The cluster path is the documented MVP setup.
 
-## Main Tech Stack
-- Java 17
-- Spring Boot 3
-- Spring Web, Validation, Data JPA, Actuator
-- PostgreSQL (H2 in tests)
-- OpenAPI Generator + springdoc
-- Maven
+## Configuration
 
-## Run
-```bash
-kubectl -n scaffoldops port-forward svc/postgres 5432:5432
-```
+| Variable | Use |
+| --- | --- |
+| `SPRING_PROFILES_ACTIVE` | `local` for host execution; `dev` in DEV; `pre` in PRE |
+| `DB_PASSWORD` | Required database password; `DB_USER` defaults to `generatorapiuser` |
+| `KAFKA_BOOTSTRAP_SERVERS` | Reachable broker; host default `localhost:9092` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI` | Local issuer defaults to `http://localhost:8080/realms/scaffoldops-dev`; PRE validates `http://keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI` | Environment-specific Keycloak realm JWKS endpoint; PRE uses `keycloak-pre.security.svc.cluster.local:8080/realms/scaffoldops-pre/protocol/openid-connect/certs` over HTTP |
+| `SERVER_PORT` | Default `8080`; use `8081` alongside local Keycloak |
 
-Then start the app locally with the `local` Spring profile:
+Kubernetes reads `postgres-credentials/POSTGRES_GENERATOR_API_PASSWORD` in the application namespace. Topic overrides and scheduler settings are in `src/main/resources/application.yml`.
+
+## Build, test and run
+
+Run from this repository root after provisioning the dependencies and exporting the variables above:
 
 ```bash
-SPRING_PROFILES_ACTIVE=local DB_PASSWORD=... ./mvnw spring-boot:run
-```
-
-Local development uses the PostgreSQL service through `kubectl port-forward`,
-so the application connects to `localhost:5432` while the port-forward session
-is active.
-The dev Kubernetes deployment activates the `dev` Spring profile, which points
-to `postgres.scaffoldops.svc.cluster.local:5432` from inside the cluster.
-`DB_PASSWORD` must be provided from the environment locally and from a
-Kubernetes secret in dev. `DB_USER` defaults to `generatorapiuser`.
-
-## Test
-```bash
-./mvnw test
-```
-
-## API Reference
-See [docs/API.md](docs/API.md).
-OpenAPI source: `src/main/resources/openapi/generator-api.yaml`.
-
-## Runtime Endpoints
-- API base path: `/api/generator/v1`
-- Example API endpoint: `/api/generator/v1/generation-requests`
-- Swagger UI: `/api/generator/v1/swagger-ui.html`
-- OpenAPI JSON: `/api/generator/v1/v3/api-docs`
-- Actuator health: `/actuator/health`
-- Liveness probe: `/actuator/health/liveness`
-- Readiness probe: `/actuator/health/readiness`
-
-## Docker
-```bash
+./mvnw clean test
 ./mvnw clean package -DskipTests
-docker build -f Dockerfile -t scaffoldops/generator-api:latest .
+SPRING_PROFILES_ACTIVE=local SERVER_PORT=8081 DB_PASSWORD="$DB_PASSWORD" ./mvnw spring-boot:run
 ```
 
-## Kubernetes
-Deployment assets live under `k8s/`:
-- `k8s/deployment`
+## Docker and Kubernetes
 
-Shared PostgreSQL infrastructure is managed in `platform-infra`. This repository only owns the generator-api application manifests and runtime configuration.
+```bash
+docker build -f Dockerfile -t victodomvar/scaffoldops-generator-api:local .
+```
+
+Build the JAR before docker build. CI publishes `victodomvar/scaffoldops-generator-api` with `<Maven version>-<short SHA>` and `develop` or `main`; deployment uses the immutable tag. GitHub Actions requires repository/organization secrets `DOCKER_USERNAME` and `DOCKER_PASSWORD` (a Docker Hub access token).
+
+After applying shared infrastructure and creating component secrets:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl -n scaffoldops-dev rollout status deploy/generator-api-deployment
+# PRE, after its infrastructure and credentials have been provisioned:
+kubectl apply -k k8s/overlays/pre
+kubectl -n scaffoldops-pre rollout status deploy/generator-api-deployment --timeout=600s
+```
+
+Deployment is `generator-api-deployment`; canonical Service is `generator-api-service`, port 80 → 8080. Both workers must use `http://generator-api-service/api/generator/v1` in both namespaces. DEV also retains a compatibility Service `generator-api` on ports 80 and 8081 for existing callers; new configuration must use the canonical Service. Infrastructure provisioning remains separate: both environments require namespace-local PostgreSQL and Kafka, the correct Keycloak realm, and existing database credentials.
+
+Use the environment overlays, not the base deployment directly. The startup probe allows up to five minutes for JVM, database/schema validation and web startup before liveness checks begin; TCP probes retain the existing health semantics. PRE supplies both issuer and JWKS URIs: Spring validates the token issuer without requiring discovery at startup. The legacy JWKS-only decoder is limited to DEV. If Keycloak advertises a different issuer for externally obtained tokens, coordinate that exact issuer with the PRE overlay; never disable issuer validation to work around a mismatch.
+
+Offline manifest and workflow checks (Python 3, PyYAML and `kubectl` required):
+
+```bash
+python3 -m pip install 'PyYAML>=6,<7'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests -v
+```
+
+## GitHub Actions
+
+- `pr-checks.yml`: Maven verification and tests for PRs to `develop`/`main` and feature branch pushes.
+- `develop-pipeline.yml`: verify, test, build/push image, deploy to `scaffoldops-dev`.
+- `main-pipeline.yml`: corresponding PRE pipeline targeting `scaffoldops-pre`.
+- `deploy-k8s.yml`: reusable `workflow_call` deployment, selects context `minikube` and waits for rollout; it is not manually dispatchable.
+
+Jobs use self-hosted runners. PRE needs additional infrastructure; see [delivery guide](https://github.com/ScaffoldOps/scaffoldops-docs/blob/main/docs/delivery.md).
+
+## Troubleshooting
+
+Check `kubectl config current-context`, pods, events and component logs before restarting. For `ImagePullBackOff`, check the image/tag and namespace-local registry secret. `docker-hub-credentials` is Opaque application configuration and must never be used as `imagePullSecrets`. WSL runners need Linux Docker, daemon access, and a readable kubeconfig; a WindowsApps Docker shim can cause EACCES. Port conflicts require changing the local side of the port-forward. See [operations](https://github.com/ScaffoldOps/scaffoldops-docs/blob/main/docs/operations.md) for commands and lifecycle diagnostics.

@@ -1,11 +1,16 @@
 openapi: 3.0.3
 info:
   title: ScaffoldOps Generator API
-  description: API for submitting and tracking scaffold generation requests.
+  description: API for submitting, tracking, deploying, and undeploying scaffold generation requests.
   version: "0.0.1-SNAPSHOT"
 servers:
   - url: /api/generator/v1
     description: Base API path
+tags:
+  - name: GenerationRequest
+    description: Public operations for scaffold generation requests.
+  - name: InternalGenerationRequest
+    description: Internal service-to-service operations. Not intended for use by end clients.
 paths:
   /generation-requests:
     post:
@@ -26,11 +31,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenerationRequestResponse'
         '400':
-          description: Invalid request
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
         - GenerationRequest
       operationId: listGenerationRequests
+      parameters:
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: template
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: generationStatus
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GenerationStatus'
+        - name: deploymentStatus
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DeploymentStatus'
+        - name: deploymentTarget
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DeploymentTarget'
+        - name: database
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: restApi
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: security
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: messaging
+          in: query
+          required: false
+          schema:
+            type: boolean
       responses:
         '200':
           description: OK
@@ -40,18 +97,19 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GenerationRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /generation-requests/{id}:
     get:
       tags:
         - GenerationRequest
       operationId: getGenerationRequestById
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/GenerationRequestId'
       responses:
         '200':
           description: OK
@@ -59,18 +117,217 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GenerationRequestResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - GenerationRequest
+      description: Permanently deletes the request and asynchronously requests best-effort removal of its persistent artifact, PVC workspace and Docker Hub tag. Undeploy or disable retains artifacts and images.
+      operationId: deleteGenerationRequestById
+      parameters:
+        - $ref: '#/components/parameters/GenerationRequestId'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /generation-requests/{id}/deployment:
+    post:
+      tags:
+        - GenerationRequest
+      description: Requires GENERATED, artifactRef and imageRef, and NOT_DEPLOYED or DEPLOYMENT_FAILED. Sets DEPLOYING and publishes deployment-requested.
+      operationId: deployGenerationRequest
+      parameters:
+        - $ref: '#/components/parameters/GenerationRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployGenerationRequestRequest'
+      responses:
+        '202':
+          description: Deployment requested
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - GenerationRequest
+      description: Requires DEPLOYED or DEPLOYMENT_FAILED and a known namespace. Sets UNDEPLOYING while retaining the artifact and image for future redeployment.
+      operationId: undeployGenerationRequest
+      parameters:
+        - $ref: '#/components/parameters/GenerationRequestId'
+      responses:
+        '202':
+          description: Undeployment requested
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /internal/generation-requests/{requestId}/generation-status:
+    patch:
+      tags:
+        - InternalGenerationRequest
+      summary: Update generation lifecycle status
+      description: Internal callback used by generator-worker to report generation progress and results.
+      operationId: updateGenerationRequestGenerationStatus
+      parameters:
+        - $ref: '#/components/parameters/InternalGenerationRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationStatusUpdateRequest'
+      responses:
+        '204':
+          description: Generation status updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: GENERATED requires nonblank artifactRef and imageRef
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /internal/generation-requests/{requestId}/deployment-status:
+    patch:
+      tags:
+        - InternalGenerationRequest
+      summary: Update deployment lifecycle status
+      description: Authenticated callback reporting terminal deployment results. DEPLOYING accepts DEPLOYED or DEPLOYMENT_FAILED; UNDEPLOYING accepts NOT_DEPLOYED or DEPLOYMENT_FAILED. Supplied namespace must match. Last namespace is retained; stale transitions return 409.
+      operationId: updateGenerationRequestDeploymentStatus
+      parameters:
+        - $ref: '#/components/parameters/InternalGenerationRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentStatusUpdateRequest'
+      responses:
+        '204':
+          description: Deployment status updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
+  parameters:
+    GenerationRequestId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InternalGenerationRequestId:
+      name: requestId
+      in: path
+      required: true
+      description: Generation request identifier.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Invalid lifecycle state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     DeploymentTarget:
       type: string
       enum:
         - KUBERNETES
-    GenerationRequestStatus:
+    GenerationStatus:
       type: string
       enum:
         - RECEIVED
+        - GENERATING
+        - GENERATED
+        - GENERATION_FAILED
+    DeploymentStatus:
+      type: string
+      enum:
+        - NOT_DEPLOYED
+        - DEPLOYMENT_REQUESTED
+        - DEPLOYING
+        - DEPLOYED
+        - UNDEPLOYMENT_REQUESTED
+        - UNDEPLOYING
+        - DEPLOYMENT_FAILED
     CreateGenerationRequestRequest:
       type: object
       required:
@@ -94,15 +351,77 @@ components:
           type: boolean
         deploymentTarget:
           $ref: '#/components/schemas/DeploymentTarget'
-    GenerationRequestResponse:
+    DeployGenerationRequestRequest:
       type: object
       required:
-        - id
-        - name
-        - template
-        - deploymentTarget
-        - status
-        - createdAt
+        - namespace
+        - replicas
+      properties:
+        namespace:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        replicas:
+          type: integer
+          minimum: 1
+          maximum: 20
+    GenerationStatusUpdateRequest:
+      type: object
+      required:
+        - generationStatus
+      properties:
+        failureStage:
+          type: string
+          nullable: true
+          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
+          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Number of additional image build/push attempts performed.
+        generationStatus:
+          type: string
+          description: Current generation status reported by generator-worker. GENERATED requires nonblank artifactRef and imageRef after artifact upload and Docker image push.
+          enum:
+            - GENERATING
+            - GENERATED
+            - GENERATION_FAILED
+        message:
+          type: string
+          description: Optional progress or failure detail.
+        artifactRef:
+          type: string
+          description: Optional reference to the generated artifact.
+        imageRef:
+          type: string
+          description: Optional reference to the generated container image.
+    DeploymentStatusUpdateRequest:
+      type: object
+      required:
+        - deploymentStatus
+      properties:
+        deploymentStatus:
+          type: string
+          description: Current deployment status reported by deployment-worker.
+          enum:
+            - DEPLOYED
+            - NOT_DEPLOYED
+            - DEPLOYMENT_FAILED
+        message:
+          type: string
+          description: Optional progress or failure detail.
+        imageRef:
+          type: string
+          description: Optional reference to the deployed container image.
+        namespace:
+          type: string
+          maxLength: 63
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          description: Must match the persisted deployment namespace.
+    GenerationRequestResponse:
+      type: object
+      required: [id, name, template, deploymentTarget, features, generation, deployment, timestamps]
       properties:
         id:
           type: string
@@ -111,6 +430,43 @@ components:
           type: string
         template:
           type: string
+        deploymentTarget:
+          $ref: '#/components/schemas/DeploymentTarget'
+        features:
+          $ref: '#/components/schemas/GenerationRequestFeaturesResponse'
+        generation:
+          $ref: '#/components/schemas/GenerationRequestGenerationResponse'
+        deployment:
+          $ref: '#/components/schemas/GenerationRequestDeploymentResponse'
+        timestamps:
+          $ref: '#/components/schemas/GenerationRequestTimestampsResponse'
+      example:
+        id: 'a942f061-9cd4-4c36-b3b4-3f4902bca977'
+        name: billing-service
+        template: spring-boot-hexagonal
+        deploymentTarget: KUBERNETES
+        features:
+          database: false
+          restApi: true
+          security: false
+          messaging: false
+        generation:
+          status: GENERATED
+          message: Generation completed successfully
+          artifactRef: s3://artifacts/billing.zip
+          imageRef: docker.io/scaffoldops/billing:latest
+          failureStage: null
+          retryCount: 0
+        deployment:
+          status: NOT_DEPLOYED
+          namespace: null
+        timestamps:
+          createdAt: '2026-10-08T14:23:29.507533Z'
+          updatedAt: '2026-10-08T14:24:16.255323Z'
+    GenerationRequestFeaturesResponse:
+      type: object
+      required: [database, restApi, security, messaging]
+      properties:
         database:
           type: boolean
         restApi:
@@ -119,10 +475,58 @@ components:
           type: boolean
         messaging:
           type: boolean
-        deploymentTarget:
-          $ref: '#/components/schemas/DeploymentTarget'
+    GenerationRequestGenerationResponse:
+      type: object
+      description: Generation lifecycle and results. GENERATED requires both nonblank artifactRef and imageRef.
+      required: [status, message, artifactRef, imageRef, failureStage, retryCount]
+      properties:
         status:
-          $ref: '#/components/schemas/GenerationRequestStatus'
+          $ref: '#/components/schemas/GenerationStatus'
+        message:
+          type: string
+          nullable: true
+        artifactRef:
+          type: string
+          nullable: true
+        imageRef:
+          type: string
+          nullable: true
+        failureStage:
+          type: string
+          nullable: true
+          description: Failure diagnostic (ARTIFACT_GENERATION, ARTIFACT_UPLOAD, IMAGE_BUILD, IMAGE_PUSH, CALLBACK, UNKNOWN).
+          pattern: '^(ARTIFACT_GENERATION|ARTIFACT_UPLOAD|IMAGE_BUILD|IMAGE_PUSH|CALLBACK|UNKNOWN)$'
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Number of additional image build/push attempts performed.
+    GenerationRequestDeploymentResponse:
+      type: object
+      required: [status, namespace]
+      properties:
+        status:
+          $ref: '#/components/schemas/DeploymentStatus'
+        namespace:
+          type: string
+          nullable: true
+    GenerationRequestTimestampsResponse:
+      type: object
+      required: [createdAt, updatedAt]
+      properties:
         createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required:
+        - message
+        - timestamp
+      properties:
+        message:
+          type: string
+        timestamp:
           type: string
           format: date-time

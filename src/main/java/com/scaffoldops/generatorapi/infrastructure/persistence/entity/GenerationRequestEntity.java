@@ -1,7 +1,8 @@
 package com.scaffoldops.generatorapi.infrastructure.persistence.entity;
 
 import com.scaffoldops.generatorapi.domain.model.DeploymentTarget;
-import com.scaffoldops.generatorapi.domain.model.GenerationRequestStatus;
+import com.scaffoldops.generatorapi.domain.model.DeploymentStatus;
+import com.scaffoldops.generatorapi.domain.model.GenerationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,6 +16,11 @@ import java.util.UUID;
 @Entity
 @Table(name = "generation_requests")
 public class GenerationRequestEntity {
+
+    @Column(name = "recovery_reserved_until")
+    private OffsetDateTime recoveryReservedUntil;
+
+    public void reserveRecovery(OffsetDateTime until) { recoveryReservedUntil = until; }
 
     @Id
     private UUID id;
@@ -43,10 +49,43 @@ public class GenerationRequestEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private GenerationRequestStatus status;
+    private GenerationStatus generationStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DeploymentStatus deploymentStatus;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String specJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String message;
+
+    @Column(columnDefinition = "TEXT")
+    private String artifactRef;
+
+    @Column(columnDefinition = "TEXT")
+    private String imageRef;
+
+    @Column(columnDefinition = "TEXT")
+    private String deploymentNamespace;
+
+    @Column(name = "failure_stage")
+    private String failureStage;
+
+    @Column(name = "retry_count")
+    private Integer retryCount;
+
+    public String getFailureStage() { return failureStage; }
+    public void setFailureStage(String failureStage) { this.failureStage = failureStage; }
+    public Integer getRetryCount() { return retryCount; }
+    public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
 
     @Column(nullable = false)
     private OffsetDateTime createdAt;
+
+    @Column(nullable = false)
+    private OffsetDateTime updatedAt;
 
     @SuppressWarnings("unused")
     protected GenerationRequestEntity() {
@@ -61,8 +100,15 @@ public class GenerationRequestEntity {
             boolean security,
             boolean messaging,
             DeploymentTarget deploymentTarget,
-            GenerationRequestStatus status,
-            OffsetDateTime createdAt
+            GenerationStatus generationStatus,
+            DeploymentStatus deploymentStatus,
+            String specJson,
+            String message,
+            String artifactRef,
+            String imageRef,
+            String deploymentNamespace,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
     ) {
         this.id = id;
         this.name = name;
@@ -72,8 +118,15 @@ public class GenerationRequestEntity {
         this.security = security;
         this.messaging = messaging;
         this.deploymentTarget = deploymentTarget;
-        this.status = status;
+        this.generationStatus = generationStatus;
+        this.deploymentStatus = deploymentStatus;
+        this.specJson = specJson;
+        this.message = message;
+        this.artifactRef = artifactRef;
+        this.imageRef = imageRef;
+        this.deploymentNamespace = deploymentNamespace;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public UUID getId() {
@@ -108,11 +161,39 @@ public class GenerationRequestEntity {
         return deploymentTarget;
     }
 
-    public GenerationRequestStatus getStatus() {
-        return status;
+    public GenerationStatus getGenerationStatus() {
+        return generationStatus;
+    }
+
+    public DeploymentStatus getDeploymentStatus() {
+        return deploymentStatus;
+    }
+
+    public String getSpecJson() {
+        return specJson;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public String getArtifactRef() {
+        return artifactRef;
+    }
+
+    public String getImageRef() {
+        return imageRef;
+    }
+
+    public String getDeploymentNamespace() {
+        return deploymentNamespace;
     }
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }

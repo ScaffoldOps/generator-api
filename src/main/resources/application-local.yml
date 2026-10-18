@@ -1,4 +1,9 @@
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:http://localhost:8080/realms/scaffoldops-dev}
   datasource:
     url: jdbc:postgresql://localhost:5432/generatorapidb
     username: ${DB_USER:generatorapiuser}

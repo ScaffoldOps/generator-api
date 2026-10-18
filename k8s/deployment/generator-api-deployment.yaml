@@ -14,27 +14,31 @@ spec:
     spec:
       containers:
         - name: generator-api
-          image: scaffoldops/generator-api:latest
+          image: victodomvar/scaffoldops-generator-api:main
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "dev"
+            - name: ARTIFACT_CLEANUP_REQUESTED_TOPIC
+              value: "artifact-cleanup-requested"
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-credentials
                   key: POSTGRES_GENERATOR_API_PASSWORD
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 30
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 15

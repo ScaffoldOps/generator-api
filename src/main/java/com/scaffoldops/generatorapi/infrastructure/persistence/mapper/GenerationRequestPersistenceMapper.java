@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class GenerationRequestPersistenceMapper {
 
     public GenerationRequestEntity toEntity(GenerationRequest generationRequest) {
-        return new GenerationRequestEntity(
+        GenerationRequestEntity entity = new GenerationRequestEntity(
                 generationRequest.id(),
                 generationRequest.name(),
                 generationRequest.template(),
@@ -17,9 +17,19 @@ public class GenerationRequestPersistenceMapper {
                 generationRequest.security(),
                 generationRequest.messaging(),
                 generationRequest.deploymentTarget(),
-                generationRequest.status(),
-                generationRequest.createdAt()
+                generationRequest.generationStatus(),
+                generationRequest.deploymentStatus(),
+                generationRequest.specJson(),
+                generationRequest.message(),
+                generationRequest.artifactRef(),
+                generationRequest.imageRef(),
+                generationRequest.deploymentNamespace(),
+                generationRequest.createdAt(),
+                generationRequest.updatedAt()
         );
+        entity.setFailureStage(generationRequest.failureStage());
+        entity.setRetryCount(generationRequest.retryCount());
+        return entity;
     }
 
     public GenerationRequest toDomain(GenerationRequestEntity entity) {
@@ -32,8 +42,17 @@ public class GenerationRequestPersistenceMapper {
                 entity.isSecurity(),
                 entity.isMessaging(),
                 entity.getDeploymentTarget(),
-                entity.getStatus(),
-                entity.getCreatedAt()
+                entity.getGenerationStatus(),
+                entity.getDeploymentStatus(),
+                entity.getSpecJson(),
+                entity.getMessage(),
+                entity.getArtifactRef(),
+                entity.getImageRef(),
+                entity.getDeploymentNamespace(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt(),
+                entity.getFailureStage(),
+                entity.getRetryCount()
         );
     }
 }

@@ -1,5 +1,6 @@
 package com.scaffoldops.generatorapi.application.port.out;
 
+import com.scaffoldops.generatorapi.application.model.GenerationRequestFilters;
 import com.scaffoldops.generatorapi.domain.model.GenerationRequest;
 
 import java.util.List;
@@ -12,5 +13,10 @@ public interface GenerationRequestRepository {
 
     Optional<GenerationRequest> findById(UUID id);
 
-    List<GenerationRequest> findAll();
+    /** Serialize lifecycle callbacks with scheduler reservations. Requires a write transaction. */
+    default void lockById(UUID id) { }
+
+    boolean deleteById(UUID id);
+
+    List<GenerationRequest> findAllByFilters(GenerationRequestFilters filters);
 }
